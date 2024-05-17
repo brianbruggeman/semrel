@@ -1,0 +1,24 @@
+[package]
+name = "semrel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.83"
+atty = "0.2.14"
+clap = { version = "4.5.4", features = ["derive", "env"] }
+eyre = "0.6.12"
+gix = "0.62.0"
+num-traits = "0.2.19"
+pest = { version = "2.7.10", features = ["pretty-print"] }
+pest_derive = { version = "2.7.10", features = ["grammar-extras"] }
+serde = { version = "1.0.202", features = ["derive"] }
+serde_json = { version = "1.0.117", features = ["preserve_order"] }
+thiserror = "1.0.60"
+tokio = { version = "1.37.0", features = ["full"] }
+toml = { version = "0.8.13", features = ["preserve_order"] }
+
+[dev-dependencies]
+rstest = "0.19.0"
+tempfile = "3.10.1"
+textwrap = "0.16.1"
