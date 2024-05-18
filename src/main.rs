@@ -23,7 +23,7 @@ pub struct Opts {
     #[clap(short, long)]
     current: bool,
 
-    /// Custom rules for commit types
+    /// Custom rules for commit types (can be comma separated)
     #[clap(short, long, num_args(0..))]
     rule: Vec<String>,
 }
