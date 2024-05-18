@@ -7,6 +7,7 @@ use num_traits::AsPrimitive;
 use serde::de::{self, Deserializer, Visitor};
 use serde::Deserialize;
 
+use crate::BumpRule;
 use super::{Ver, VersionError};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
@@ -51,6 +52,27 @@ impl SimpleVersion {
     pub fn patch(&self) -> Ver {
         self.patch
     }
+
+    pub fn bump(&self, rule: impl Into<BumpRule>) -> SimpleVersion {
+        match rule.into() {
+            BumpRule::Major => {
+                let mut new_version = self.clone();
+                new_version.increment_major();
+                new_version
+            }
+            BumpRule::Minor => {
+                let mut new_version = self.clone();
+                new_version.increment_minor();
+                new_version
+            }
+            BumpRule::Patch => {
+                let mut new_version = self.clone();
+                new_version.increment_patch();
+                new_version
+            }
+            BumpRule::NoBump | BumpRule::Notset => self.clone(),
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for SimpleVersion {
@@ -76,6 +98,22 @@ impl<'de> Deserialize<'de> for SimpleVersion {
         }
 
         deserializer.deserialize_str(VersionVisitor)
+    }
+}
+
+impl std::ops::Add<BumpRule> for SimpleVersion {
+    type Output = Self;
+
+    fn add(self, rule: BumpRule) -> Self::Output {
+        self.bump(rule)
+    }
+}
+
+impl std::ops::Add<SimpleVersion> for BumpRule {
+    type Output = SimpleVersion;
+
+    fn add(self, version: SimpleVersion) -> Self::Output {
+        version.bump(self)
     }
 }
 
@@ -117,6 +155,8 @@ impl Display for SimpleVersion {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

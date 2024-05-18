@@ -31,7 +31,7 @@ pub fn bump_version(mut rules: impl Iterator<Item = (CommitType, BumpRule)>, com
     let commit_type = commit_type.into();
     let version = version.into();
     let rule = get_rule(rules.by_ref(), commit_type);
-    rule.bump_version(version)
+    version.bump(rule)
 }
 
 #[cfg(test)]

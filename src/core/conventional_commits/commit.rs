@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::Path;
 
 use pest::Parser;
@@ -13,6 +14,33 @@ pub struct Commit {
     pub subject: String,
     pub footer: Option<String>,
     pub body: Option<String>,
+}
+
+impl fmt::Display for Commit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let scope = match &self.scope {
+            Some(scope) => format!("({})", scope),
+            None => "".to_string(),
+        };
+        let title = match &self.commit_type {
+            CommitType::NonCompliant => "".to_string(),
+            CommitType::Unknown => "".to_string(),
+            CommitType::Custom(value) => value.clone(),
+            _ => self.commit_type.to_string(),
+        };
+        let mut string = match title.is_empty() {
+            true => self.subject.to_string(),
+            false => format!("{}{}: {}", title, scope, self.subject),
+        };
+
+        if let Some(body) = &self.body {
+            string = format!("{string}\n\n{body}");
+        }
+        if let Some(footer) = &self.footer {
+            string = format!("{string}\n\n{footer}");
+        }
+        write!(f, "{string}")
+    }
 }
 
 impl Commit {
@@ -56,7 +84,7 @@ impl Commit {
                     }
                 }
                 _ => {
-                    println!("Ignoring rule: {:?}", inner.as_rule());
+                    tracing::debug!("Ignoring rule: {:?}", inner.as_rule());
                 }
             }
         }
@@ -87,6 +115,12 @@ impl From<&Commit> for Commit {
             footer: commit.footer.clone(),
             body: commit.body.clone(),
         }
+    }
+}
+
+impl From<&str> for Commit {
+    fn from(commit_message: &str) -> Self {
+        Commit::new(commit_message).unwrap_or_default()
     }
 }
 
@@ -195,5 +229,14 @@ mod tests {
         let result = Commit::new(commit_message);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), expected);
+    }
+
+    #[rstest]
+    #[case::empty("", "")]
+    #[case::ci("ci(core): add commit message parser", "ci(core): add commit message parser")]
+    #[case::feat("feat: add commit message parser", "feat: add commit message parser")]
+    #[case::non_compliant("add commit message parser", "add commit message parser")]
+    fn test_display(#[case] commit: impl Into<Commit>, #[case] expected: String) {
+        assert_eq!(commit.into().to_string(), expected);
     }
 }
