@@ -11,6 +11,7 @@ clap = { version = "4.5.4", features = ["derive", "env"] }
 eyre = "0.6.12"
 gix = "0.62.0"
 num-traits = "0.2.19"
+package-json = "0.4.0"
 pest = { version = "2.7.10", features = ["pretty-print"] }
 pest_derive = { version = "2.7.10", features = ["grammar-extras"] }
 serde = { version = "1.0.202", features = ["derive"] }

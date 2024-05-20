@@ -168,10 +168,8 @@ mod tests {
         let result = PyProjectToml::parse(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
-            (Err(result), Err(expected)) => assert!(true, "{:?} result did not match expected {:?}", result, expected),
-            _ => {
-                assert!(false, "{:?} result did not match expected {:?}", result, expected);
-            }
+            (Err(_result), Err(_expected)) => {}
+            _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }
 
@@ -187,9 +185,7 @@ mod tests {
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
             (Err(result), Err(expected)) => assert_eq!(result.to_string(), expected.to_string()),
-            _ => {
-                assert!(false, "{:?} result did not match expected {:?}", result, expected);
-            }
+            _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }
 }

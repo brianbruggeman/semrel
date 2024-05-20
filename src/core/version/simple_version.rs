@@ -10,7 +10,7 @@ use serde::Deserialize;
 use super::{Ver, VersionError};
 use crate::BumpRule;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, Hash, serde::Serialize)]
 pub struct SimpleVersion {
     major: Ver,
     minor: Ver,

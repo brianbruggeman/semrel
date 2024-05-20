@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use crate::{
     core::{Manifest, ManifestError, SimpleVersion},
     ManifestObjectSafe, ManifestStatic,
 };
-#[derive(Debug, Default, serde::Deserialize, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PackageJson {
-    pub version: SimpleVersion,
+    version: SimpleVersion,
 }
 
 impl PackageJson {
@@ -27,8 +29,9 @@ impl ManifestObjectSafe for PackageJson {
 
 impl Manifest for PackageJson {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
-        let package: Self = serde_json::from_str(data.as_ref()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        Ok(package)
+        let package = serde_json::from_str::<package_json::PackageJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
+        let version = SimpleVersion::from_str(&package.version).map_err(|e| ManifestError::InvalidManifest(format!("Invalid version part: {}", e)))?;
+        Ok(Self::new(version))
     }
 }
 
@@ -126,10 +129,8 @@ mod tests {
         let result = PackageJson::parse(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
-            (Err(result), Err(expected)) => assert!(true, "{:?} result did not match expected {:?}", result, expected),
-            _ => {
-                assert!(false, "{:?} result did not match expected {:?}", result, expected);
-            }
+            (Err(_result), Err(_expected)) => {}
+            _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }
 
@@ -141,10 +142,8 @@ mod tests {
         let result = PackageJson::parse_version(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
-            (Err(result), Err(expected)) => assert_eq!(result.to_string(), expected.to_string()),
-            _ => {
-                assert!(false, "{:?} result did not match expected {:?}", result, expected);
-            }
+            (Err(_result), Err(_expected)) => {}
+            _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }
 }

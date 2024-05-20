@@ -1,4 +1,5 @@
 use clap::ValueEnum;
+use std::fmt;
 use std::str::FromStr;
 
 use crate::SimpleVersion;
@@ -24,14 +25,14 @@ impl BumpRule {
     }
 }
 
-impl ToString for BumpRule {
-    fn to_string(&self) -> String {
+impl fmt::Display for BumpRule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BumpRule::Major => "major".to_string(),
-            BumpRule::Minor => "minor".to_string(),
-            BumpRule::Patch => "patch".to_string(),
-            BumpRule::NoBump => "none".to_string(),
-            BumpRule::Notset => "notset".to_string(),
+            BumpRule::Major => write!(f, "major"),
+            BumpRule::Minor => write!(f, "minor"),
+            BumpRule::Patch => write!(f, "patch"),
+            BumpRule::NoBump => write!(f, "none"),
+            BumpRule::Notset => write!(f, "notset"),
         }
     }
 }

@@ -51,25 +51,21 @@ impl ManifestStatic for CargoToml {
 impl ManifestObjectSafe for CargoToml {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
         match &self.manifest.package {
-            Some(package) => {
-                match package.version.get() {
-                    Ok(version) => {
-                        if version == "1.0.0" {
-                            println!("package: {:?}", package);
-                        }
-                        SimpleVersion::from_str(version.as_ref())
-                            .map_err(|why| ManifestError::InvalidManifest(why.to_string()))
-                            .map(|version| {
-                                match version == SimpleVersion::new(0, 0, 0) {
-                                    true => Err(ManifestError::InvalidManifest("Invalid version".to_string())),
-                                    false => Ok(version)
-                                }
-                            })?
-                    },
-                    Err(why) => Err(ManifestError::InvalidManifest(why.to_string())),
+            Some(package) => match package.version.get() {
+                Ok(version) => {
+                    if version == "1.0.0" {
+                        println!("package: {:?}", package);
+                    }
+                    SimpleVersion::from_str(version.as_ref())
+                        .map_err(|why| ManifestError::InvalidManifest(why.to_string()))
+                        .map(|version| match version == SimpleVersion::new(0, 0, 0) {
+                            true => Err(ManifestError::InvalidManifest("Invalid version".to_string())),
+                            false => Ok(version),
+                        })?
                 }
-            }
-            None =>  Err(ManifestError::InvalidManifest("Missing package".to_string())),
+                Err(why) => Err(ManifestError::InvalidManifest(why.to_string())),
+            },
+            None => Err(ManifestError::InvalidManifest("Missing package".to_string())),
         }
     }
 }
@@ -178,15 +174,15 @@ mod tests {
         match (&result, expected.as_ref()) {
             (Ok(result), Ok(expected_toml)) => match (&result.version(), expected_toml.version()) {
                 (Ok(result_version), Ok(expected_version)) => assert_eq!(*result_version, expected_version, "Expected {expected:?} but got {result:?}"),
-                (Err(result), Err(expected)) => assert!(true, "Expected {expected:?} but got {result:?}"),
-                _ => assert!(false, "Expected {expected:?} but got {result:?}"),
+                (Err(_result), Err(_expected)) => {}
+                _ => panic!("Expected {expected:?} but got {result:?}"),
             },
-            (Err(result), Err(expected)) => assert!(true, "Expected {expected:?} but got {result:?}"),
+            (Err(_result), Err(_expected)) => {}
             (Ok(result), Err(_expected_version_error)) => match result.version() {
-                Err(_result_version_error) => assert!(true, "Expected {expected:?} but got {result:?}"),
-                _ => assert!(false, "Expected {expected:?} but got {result:?}"),
-            }
-            _ => assert!(false, "Expected {expected:?} but got {result:?}"),
+                Err(_result_version_error) => {}
+                _ => panic!("Expected {expected:?} but got {result:?}"),
+            },
+            _ => panic!("Expected {expected:?} but got {result:?}"),
         }
     }
 
@@ -199,10 +195,9 @@ mod tests {
         match (&result.version(), &expected.as_ref()) {
             (Ok(result), Ok(expected)) => assert_eq!(result, *expected, "Expected {expected:?} but got {result:?}"),
             // For the moment, don't worry about precise parsing errors
-            (Err(result), Err(expected)) => assert!(true, "\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
-            (Ok(result), Err(_)) => assert!(false, "\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
-            _ => assert!(false, "\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
+            (Err(_result), Err(_expected)) => {}
+            (Ok(result), Err(_)) => panic!("\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
+            _ => panic!("\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
         }
     }
-
 }
