@@ -78,7 +78,7 @@ fn main() -> anyhow::Result<()> {
         };
         let rules = parse_rules(&opts.rule)?;
         let commit_type = commit.commit_type.clone();
-        new_version = bump_version(rules, &commit_type, current_version);
+        new_version = bump_version(rules, commit_type, current_version);
     }
     println!("{new_version}");
     Ok(())
@@ -87,14 +87,15 @@ fn main() -> anyhow::Result<()> {
 pub fn get_current_version(path: impl AsRef<Path>) -> Result<SimpleVersion, ManifestError> {
     let manifest_path = find_manifest(path.as_ref())?;
     let manifest = parse_manifest(manifest_path)?;
-    Ok(manifest.version())
+    manifest.version()
 }
 
-fn parse_rules<'a>(rules: &'a [impl AsRef<str>]) -> anyhow::Result<impl Iterator<Item = (CommitType, BumpRule)> + 'a> {
-    let iter = rules.into_iter()
+fn parse_rules(rules: &[impl AsRef<str>]) -> anyhow::Result<impl Iterator<Item = (CommitType, BumpRule)> + '_> {
+    let iter = rules
+        .iter()
         .flat_map(|rule| rule.as_ref().split(','))
         .map(|rule| rule.split('=').take(2))
-        .map(|mut rule| {
+        .flat_map(|mut rule| {
             let commit_type = match &rule.next() {
                 Some(commit_type) => CommitType::from(*commit_type),
                 None => anyhow::bail!("No rule found."),
@@ -104,7 +105,6 @@ fn parse_rules<'a>(rules: &'a [impl AsRef<str>]) -> anyhow::Result<impl Iterator
                 None => anyhow::bail!("Invalid rule for: {commit_type}"),
             };
             Ok((commit_type, bump_rule))
-        })
-        .flatten();
+        });
     Ok(iter)
 }

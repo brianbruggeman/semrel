@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use clap::ValueEnum;
+use std::str::FromStr;
 
 use crate::SimpleVersion;
 
@@ -60,7 +60,6 @@ impl From<&str> for BumpRule {
             _ => BumpRule::Notset,
         }
     }
-
 }
 
 impl ValueEnum for BumpRule {

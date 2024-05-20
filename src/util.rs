@@ -9,9 +9,13 @@ pub fn find_manifest(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError> {
         path.as_ref().join(CargoToml::manifest_filename()),
     ]
     .into_iter()
-    .inspect(|path| {tracing::debug!("Checking for: {}", path.display());})
+    .inspect(|path| {
+        tracing::debug!("Checking for: {}", path.display());
+    })
     .find(|path| path.exists() && path.is_file())
-    .inspect(|path| {tracing::debug!("Found: {}", path.display());})
+    .inspect(|path| {
+        tracing::debug!("Found: {}", path.display());
+    })
     .ok_or_else(|| ManifestError::InvalidManifestPath(path.as_ref().to_path_buf()))
 }
 

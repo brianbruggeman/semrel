@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::VersionError;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ManifestError {
     #[error("Invalid manifest path: {0}")]
     InvalidManifestPath(PathBuf),

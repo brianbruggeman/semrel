@@ -4,12 +4,11 @@ use crate::{Commit, RepositoryError};
 
 pub fn get_recent_commit(path: impl AsRef<Path>) -> Result<Commit, RepositoryError> {
     let repo_path = match path.as_ref().is_file() {
-        true => {
-            path.as_ref()
-                .parent()
-                .ok_or_else(|| RepositoryError::InvalidRepository(path.as_ref().to_path_buf()))?
-                .to_path_buf()
-        }
+        true => path
+            .as_ref()
+            .parent()
+            .ok_or_else(|| RepositoryError::InvalidRepository(path.as_ref().to_path_buf()))?
+            .to_path_buf(),
         false => path.as_ref().to_path_buf(),
     };
     tracing::debug!("Getting commit from: {}", repo_path.display());
@@ -29,13 +28,12 @@ pub fn get_recent_commit(path: impl AsRef<Path>) -> Result<Commit, RepositoryErr
 
     // Get the commit details
     let message = String::from_utf8_lossy(&commit_object.data);
-    let message = prune_message(&message);
+    let message = prune_message(message);
     tracing::debug!("Found commit message: {:?}", message);
     let commit = Commit::new(&message).map_err(|_| RepositoryError::NoCommitMessage(repo_path.clone(), message.to_string()))?;
     tracing::debug!("commit={commit}");
     Ok(commit)
 }
-
 
 pub fn prune_message(message: impl AsRef<str>) -> String {
     message

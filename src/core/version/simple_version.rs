@@ -7,8 +7,8 @@ use num_traits::AsPrimitive;
 use serde::de::{self, Deserializer, Visitor};
 use serde::Deserialize;
 
-use crate::BumpRule;
 use super::{Ver, VersionError};
+use crate::BumpRule;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct SimpleVersion {
@@ -56,21 +56,21 @@ impl SimpleVersion {
     pub fn bump(&self, rule: impl Into<BumpRule>) -> SimpleVersion {
         match rule.into() {
             BumpRule::Major => {
-                let mut new_version = self.clone();
+                let mut new_version = *self;
                 new_version.increment_major();
                 new_version
             }
             BumpRule::Minor => {
-                let mut new_version = self.clone();
+                let mut new_version = *self;
                 new_version.increment_minor();
                 new_version
             }
             BumpRule::Patch => {
-                let mut new_version = self.clone();
+                let mut new_version = *self;
                 new_version.increment_patch();
                 new_version
             }
-            BumpRule::NoBump | BumpRule::Notset => self.clone(),
+            BumpRule::NoBump | BumpRule::Notset => *self,
         }
     }
 }
@@ -155,8 +155,6 @@ impl Display for SimpleVersion {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

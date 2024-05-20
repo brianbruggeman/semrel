@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.83"
 atty = "0.2.14"
+cargo_toml = "0.20.2"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 eyre = "0.6.12"
 gix = "0.62.0"

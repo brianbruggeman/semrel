@@ -8,7 +8,7 @@ pub trait ManifestStatic {
 }
 
 pub trait ManifestObjectSafe {
-    fn version(&self) -> SimpleVersion;
+    fn version(&self) -> Result<SimpleVersion, ManifestError>;
 }
 
 pub trait Manifest: ManifestStatic + ManifestObjectSafe {
@@ -70,6 +70,6 @@ pub trait Manifest: ManifestStatic + ManifestObjectSafe {
         Self: Sized,
     {
         let package = Self::parse(data)?;
-        Ok(package.version())
+        package.version()
     }
 }

@@ -20,8 +20,8 @@ impl ManifestStatic for PackageJson {
 }
 
 impl ManifestObjectSafe for PackageJson {
-    fn version(&self) -> SimpleVersion {
-        self.version
+    fn version(&self) -> Result<SimpleVersion, ManifestError> {
+        Ok(self.version)
     }
 }
 
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_load_valid_file() {
         let (_temp_dir, _parent, package_json_path) = temp_package_json();
-        let result = PackageJson::load(&package_json_path);
+        let result = PackageJson::load(package_json_path);
         let data = r#"
         {
             "name": "test",

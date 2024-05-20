@@ -52,13 +52,13 @@ impl ManifestStatic for PyProjectToml {
 }
 
 impl ManifestObjectSafe for PyProjectToml {
-    fn version(&self) -> SimpleVersion {
+    fn version(&self) -> Result<SimpleVersion, ManifestError> {
         if let Some(pep621) = self.project {
-            return pep621.version;
+            return Ok(pep621.version);
         } else if let Some(tool) = self.tool {
-            return tool.poetry.version;
+            return Ok(tool.poetry.version);
         }
-        SimpleVersion::new(0, 1, 0)
+        Err(ManifestError::InvalidManifest("Missing version".to_string()))
     }
 }
 
