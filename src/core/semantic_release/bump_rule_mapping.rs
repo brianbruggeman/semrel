@@ -14,7 +14,7 @@ pub fn build_default_rules() -> impl Iterator<Item = (CommitType, BumpRule)> {
         (CommitType::Refactor, BumpRule::Patch),
         (CommitType::Revert, BumpRule::Patch),
         (CommitType::Style, BumpRule::Patch),
-        (CommitType::Test, BumpRule::Patch),
+        (CommitType::Test, BumpRule::NoBump),
     ];
     mapping.into_iter()
 }
