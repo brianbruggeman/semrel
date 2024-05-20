@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::SimpleVersion;
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BumpRule {
     /// Bump the major version
     Major,

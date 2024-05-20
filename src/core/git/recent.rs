@@ -28,10 +28,11 @@ pub fn get_recent_commit(path: impl AsRef<Path>) -> Result<Commit, RepositoryErr
 
     // Get the commit details
     let message = String::from_utf8_lossy(&commit_object.data);
+    tracing::debug!("Full commit message: \n{message}");
     let message = prune_message(message);
-    tracing::debug!("Found commit message: {:?}", message);
+    tracing::debug!("Commit::new({message:?})");
     let commit = Commit::new(&message).map_err(|_| RepositoryError::NoCommitMessage(repo_path.clone(), message.to_string()))?;
-    tracing::debug!("commit={commit}");
+    tracing::debug!("{commit:?}");
     Ok(commit)
 }
 
@@ -40,13 +41,20 @@ pub fn prune_message(message: impl AsRef<str>) -> String {
         .as_ref()
         .lines()
         .filter(|line| {
-            !line.starts_with("Co-authored-by:")
-                && !line.starts_with("Signed-off-by:")
-                && !line.starts_with("Change-Id:")
-                && !line.starts_with("tree")
-                && !line.starts_with("author")
+            let line = line.trim().to_ascii_lowercase();
+            let result = !line.starts_with("author")
+                && !line.starts_with("change-id")
+                && !line.starts_with("commit")
                 && !line.starts_with("committer")
-                && !line.is_empty()
+                && !line.starts_with("date")
+                && !line.starts_with("parent")
+                && !line.starts_with("reviewed-by")
+                && !line.starts_with("tree")
+                && !line.is_empty();
+            if !result {
+                tracing::debug!("Pruning: {line:?}");
+            }
+            result
         })
         .collect::<Vec<_>>()
         .join("\n")

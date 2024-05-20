@@ -21,16 +21,18 @@ pub fn build_default_rules() -> impl Iterator<Item = (CommitType, BumpRule)> {
 
 pub fn get_rule(mut rules: impl Iterator<Item = (CommitType, BumpRule)>, commit_type: impl Into<CommitType>) -> BumpRule {
     let commit_type = commit_type.into();
+    tracing::debug!("Finding rule for {commit_type:?}");
     rules
         .find(|(t, _)| *t == commit_type)
         .map(|(_, r)| r)
-        .unwrap_or(BumpRule::NoBump)
+        .unwrap_or(BumpRule::Notset)
 }
 
 pub fn bump_version(mut rules: impl Iterator<Item = (CommitType, BumpRule)>, commit_type: impl Into<CommitType>, version: impl Into<SimpleVersion>) -> SimpleVersion {
     let commit_type = commit_type.into();
     let version = version.into();
     let rule = get_rule(rules.by_ref(), commit_type);
+    tracing::debug!("Bumping version with rule: {rule:?}");
     version.bump(rule)
 }
 

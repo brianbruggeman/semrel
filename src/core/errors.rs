@@ -32,8 +32,10 @@ pub enum ConventionalCommitError {
     InvalidCommitType(String),
     #[error("Invalid commit message: {0}")]
     InvalidCommitMessage(String),
-    #[error("Invalid scope: {0}.  It cannot be a standard conventional commit type.")]
+    #[error("Invalid scope: {0}.  Do not use a standard conventional commit type as a scope.")]
     ScopeIsCommitType(String),
     #[error("{0}")]
     RepositoryError(#[from] RepositoryError),
+    #[error("Invalid Parse: could not parse as {0}.")]
+    InvalidParse(String),
 }

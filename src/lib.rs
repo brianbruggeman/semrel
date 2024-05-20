@@ -1,8 +1,8 @@
 mod core;
 pub use core::*;
 
-mod supported;
-pub use supported::*;
+mod manifests;
+pub use manifests::*;
 
 mod util;
 pub use util::*;

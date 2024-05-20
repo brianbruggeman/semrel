@@ -14,6 +14,7 @@ pub struct Commit {
     pub subject: String,
     pub footer: Option<String>,
     pub body: Option<String>,
+    pub prefix: Option<String>,
 }
 
 impl fmt::Display for Commit {
@@ -42,67 +43,83 @@ impl fmt::Display for Commit {
         write!(f, "{string}")
     }
 }
-
 impl Commit {
     pub fn new(commit_message: impl AsRef<str>) -> Result<Self, ConventionalCommitError> {
-        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message.as_ref()).map_err(|err| ConventionalCommitError::InvalidCommitMessage(err.to_string()))?;
+        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message.as_ref())
+            .map_err(|err| ConventionalCommitError::InvalidCommitMessage(err.to_string()))?;
         let mut commit = Commit::default();
 
-        // Assuming `commit_message` is the root rule that captures a full commit message
         for inner in parsed.into_iter() {
             match inner.as_rule() {
-                Rule::commit_type => {
-                    let commit_type = CommitType::from(inner.as_str());
-                    if commit_type == CommitType::Unknown {
-                        return Err(ConventionalCommitError::InvalidCommitType(inner.as_str().to_string()));
-                    }
-                    commit.commit_type = commit_type;
-                }
-                Rule::scope => {
-                    let scope_as_commit_type = CommitType::from(inner.as_str());
-                    match scope_as_commit_type {
-                        CommitType::Custom(value) => {
-                            commit.scope = Some(value);
-                        }
-                        CommitType::Unknown => {
-                            commit.scope = Some(inner.as_str().to_string());
-                        }
-                        _ => {
-                            return Err(ConventionalCommitError::ScopeIsCommitType(inner.as_str().to_string()));
-                        }
-                    }
-                }
-                Rule::subject => {
-                    commit.subject = inner.as_str().to_string();
-                }
-                Rule::footer => {
-                    commit.footer = Some(inner.as_str().to_string());
-                }
-                Rule::body => {
-                    if !inner.as_str().is_empty() {
-                        commit.body = Some(inner.as_str().to_string());
-                    }
-                }
-                _ => {
-                    tracing::debug!("Ignoring rule: {:?}", inner.as_rule());
-                }
+                Rule::commit_type => commit.commit_type = Commit::parse_commit_type(inner)?,
+                Rule::scope => commit.scope = Commit::parse_scope(inner)?,
+                Rule::subject => commit.subject = Commit::parse_subject(inner)?,
+                Rule::footer => commit.footer = Commit::parse_footer(inner)?,
+                Rule::body => commit.body = Commit::parse_body(inner)?,
+                _ => tracing::debug!("Ignoring rule: {:?}", inner.as_rule()),
             }
         }
 
-        if commit.commit_type == CommitType::Unknown && commit.scope.is_none() && !commit.subject.is_empty() {
-            commit.commit_type = CommitType::NonCompliant;
-        }
+        Commit::finalize_commit(&mut commit);
 
         Ok(commit)
     }
 
+    fn parse_commit_type(pair: pest::iterators::Pair<Rule>) -> Result<CommitType, ConventionalCommitError> {
+        match pair.as_rule() == Rule::commit_type {
+            false => Err(ConventionalCommitError::InvalidParse("commit_type".to_string())),
+            true =>  {
+                let commit_type = CommitType::from(pair.as_str());
+                if commit_type == CommitType::Unknown {
+                    return Err(ConventionalCommitError::InvalidCommitType(pair.as_str().to_string()));
+                }
+                Ok(commit_type)
+            }
+        }
+    }
+
+    fn parse_scope(pair: pest::iterators::Pair<Rule>) -> Result<Option<String>, ConventionalCommitError> {
+        let scope_as_commit_type = CommitType::from(pair.as_str());
+        match scope_as_commit_type {
+            CommitType::Custom(value) => Ok(Some(value)),
+            CommitType::Unknown => Ok(Some(pair.as_str().to_string())),
+            _ => Err(ConventionalCommitError::ScopeIsCommitType(pair.as_str().to_string())),
+        }
+    }
+
+    fn parse_subject(pair: pest::iterators::Pair<Rule>) -> Result<String, ConventionalCommitError> {
+        Ok(pair.as_str().to_string())
+    }
+
+    fn parse_footer(pair: pest::iterators::Pair<Rule>) -> Result<Option<String>, ConventionalCommitError> {
+        Ok(Some(pair.as_str().to_string()))
+    }
+
+    fn parse_body(pair: pest::iterators::Pair<Rule>) -> Result<Option<String>, ConventionalCommitError> {
+        match pair.as_str().is_empty() {
+            true => Ok(None),
+            false => Ok(Some(pair.as_str().to_string())),
+        }
+    }
+
+    fn finalize_commit(commit: &mut Commit) {
+        if commit.commit_type == CommitType::Unknown && commit.scope.is_none() && !commit.subject.is_empty() {
+            commit.commit_type = CommitType::NonCompliant;
+            tracing::debug!("Setting commit type to {:?} because it was not recognized", commit.commit_type);
+        }
+    }
+
     pub fn is_breaking(&self, breaking_message: impl AsRef<str>) -> bool {
         let breaking_message = breaking_message.as_ref();
-        self.footer
+        let result = self.footer
             .as_ref()
             .map_or(false, |footer| footer.starts_with(breaking_message))
-            || self.body.as_ref().map_or(false, |footer| footer.starts_with(breaking_message))
-            || self.subject.contains(breaking_message)
+            || self.body.as_ref().map_or(false, |body| body.starts_with(breaking_message))
+            || self.subject.contains(breaking_message);
+        if result {
+            tracing::debug!("This commit is a breaking change");
+        }
+        result
     }
 }
 
@@ -114,6 +131,7 @@ impl From<&Commit> for Commit {
             subject: commit.subject.clone(),
             footer: commit.footer.clone(),
             body: commit.body.clone(),
+            ..Default::default()
         }
     }
 }
