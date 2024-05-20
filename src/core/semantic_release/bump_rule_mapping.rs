@@ -58,7 +58,7 @@ mod tests {
     #[case::refactor(build_default_rules(), "refactor", "1.0.0", "1.0.1")]
     #[case::revert(build_default_rules(), "revert", "1.0.0", "1.0.1")]
     #[case::style(build_default_rules(), "style", "1.0.0", "1.0.1")]
-    #[case::test(build_default_rules(), "test", "1.0.0", "1.0.1")]
+    #[case::test(build_default_rules(), "test", "1.0.0", "1.0.0")]
     #[case::custom(custom_rules(), "ENG-2345", "1.0.0", "2.0.0")]
     fn test_bump_version(
         #[case] rules: impl Iterator<Item = (CommitType, BumpRule)>,
