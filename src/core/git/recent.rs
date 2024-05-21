@@ -1,8 +1,9 @@
 use std::path::Path;
 
-use crate::{Commit, RepositoryError};
+use super::prune_message;
+use crate::{ConventionalCommit, RepositoryError};
 
-pub fn get_recent_commit(path: impl AsRef<Path>) -> Result<Commit, RepositoryError> {
+pub fn get_recent_commit(path: impl AsRef<Path>) -> Result<ConventionalCommit, RepositoryError> {
     let repo_path = match path.as_ref().is_file() {
         true => path
             .as_ref()
@@ -31,31 +32,7 @@ pub fn get_recent_commit(path: impl AsRef<Path>) -> Result<Commit, RepositoryErr
     tracing::debug!("Full commit message: \n{message}");
     let message = prune_message(message);
     tracing::debug!("Commit::new({message:?})");
-    let commit = Commit::new(&message).map_err(|_| RepositoryError::NoCommitMessage(repo_path.clone(), message.to_string()))?;
+    let commit = ConventionalCommit::new(&message).map_err(|_| RepositoryError::NoCommitMessage(repo_path.clone(), message.to_string()))?;
     tracing::debug!("{commit:?}");
     Ok(commit)
-}
-
-pub fn prune_message(message: impl AsRef<str>) -> String {
-    message
-        .as_ref()
-        .lines()
-        .filter(|line| {
-            let line = line.trim().to_ascii_lowercase();
-            let result = !line.starts_with("author")
-                && !line.starts_with("change-id")
-                && !line.starts_with("commit")
-                && !line.starts_with("committer")
-                && !line.starts_with("date")
-                && !line.starts_with("parent")
-                && !line.starts_with("reviewed-by")
-                && !line.starts_with("tree")
-                && !line.is_empty();
-            if !result {
-                tracing::debug!("Pruning: {line:?}");
-            }
-            result
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }

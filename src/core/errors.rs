@@ -24,6 +24,16 @@ pub enum RepositoryError {
     NoCommit(PathBuf),
     #[error("No commit message found in repository: {0} with id {1}")]
     NoCommitMessage(PathBuf, String),
+    #[error("No tags found for commit: {0}")]
+    NoTags(String),
+    #[error("Failed to retrieve commits: {0}")]
+    NoCommits(String),
+    #[error("Invalid manifest path: {0}")]
+    InvalidManifestPath(PathBuf),
+    #[error("{0}")]
+    InvalidManifest(String),
+    #[error("Could not read file: {0}")]
+    CouldNotReadFile(PathBuf),
 }
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]

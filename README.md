@@ -78,14 +78,22 @@ git tag -a {tag_name} -m "{tag_message}"
 ## Future work
 
 In no particular order, here's ways to improve the status quo
+
+MVP
 - [x] Control the next version with --bump=patch|minor|major
 - [x] Display the current version with --current
 - [x] Create a specific bump rule with --rule=<prefix>=patch|minor|major to create a custom rule
+- [x] Search through the commit history to find the last version bump
+- [ ] Search through the commit history to collect all of the previous commits since the last version bump
+
+Ideal
+- [ ] Display the commits that are used to produce the new version --log
+- [ ] Display manifest file with --manifest
 - [ ] Update the manifest file with --update
 - [ ] Create a commit with --commit
+- [ ] Create a configuration file and allow people to customize the rules
+
+Stretch
 - [ ] Create a tag with --tag
-- [ ] Search through the commit history to find the last version bump
-- [ ] Search through the commit history to collect all of the previous commits since the last version bump
 - [ ] Create a signed commit with --signed
 - [ ] Create an annotated tag with --annotate
-- [ ] Create a configuration file and allow people to customize the rules

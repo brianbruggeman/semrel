@@ -4,4 +4,6 @@ pub enum VersionError {
     InvalidVersionString(String),
     #[error("Invalid version part: {0}")]
     InvalidVersionPart(#[from] std::num::ParseIntError), // Automatically convert ParseIntError to VersionError
+    #[error("Missing version")]
+    MissingVersion,
 }

@@ -3,12 +3,12 @@ use std::path::Path;
 
 use pest::Parser;
 
-use crate::{get_recent_commit, ConventionalCommitError};
+use crate::{get_recent_commit, prune_message, ConventionalCommitError};
 
 use super::{CommitMessageParser, CommitType, Rule};
 
-#[derive(Debug, Default, serde::Deserialize)]
-pub struct Commit {
+#[derive(Debug, Default, serde::Deserialize, Clone)]
+pub struct ConventionalCommit {
     pub commit_type: CommitType,
     pub scope: Option<String>,
     pub subject: String,
@@ -17,7 +17,7 @@ pub struct Commit {
     pub prefix: Option<String>,
 }
 
-impl fmt::Display for Commit {
+impl fmt::Display for ConventionalCommit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scope = match &self.scope {
             Some(scope) => format!("({})", scope),
@@ -43,24 +43,24 @@ impl fmt::Display for Commit {
         write!(f, "{string}")
     }
 }
-impl Commit {
+impl ConventionalCommit {
     pub fn new(commit_message: impl AsRef<str>) -> Result<Self, ConventionalCommitError> {
-        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message.as_ref())
-            .map_err(|err| ConventionalCommitError::InvalidCommitMessage(err.to_string()))?;
-        let mut commit = Commit::default();
+        let pruned_message = prune_message(commit_message.as_ref());
+        let parsed = CommitMessageParser::parse(Rule::commit_message, &pruned_message).map_err(|err| ConventionalCommitError::InvalidCommitMessage(err.to_string()))?;
+        let mut commit = ConventionalCommit::default();
 
         for inner in parsed.into_iter() {
             match inner.as_rule() {
-                Rule::commit_type => commit.commit_type = Commit::parse_commit_type(inner)?,
-                Rule::scope => commit.scope = Commit::parse_scope(inner)?,
-                Rule::subject => commit.subject = Commit::parse_subject(inner)?,
-                Rule::footer => commit.footer = Commit::parse_footer(inner)?,
-                Rule::body => commit.body = Commit::parse_body(inner)?,
+                Rule::commit_type => commit.commit_type = ConventionalCommit::parse_commit_type(inner)?,
+                Rule::scope => commit.scope = ConventionalCommit::parse_scope(inner)?,
+                Rule::subject => commit.subject = ConventionalCommit::parse_subject(inner)?,
+                Rule::footer => commit.footer = ConventionalCommit::parse_footer(inner)?,
+                Rule::body => commit.body = ConventionalCommit::parse_body(inner)?,
                 _ => tracing::debug!("Ignoring rule: {:?}", inner.as_rule()),
             }
         }
 
-        Commit::finalize_commit(&mut commit);
+        ConventionalCommit::finalize_commit(&mut commit);
 
         Ok(commit)
     }
@@ -68,7 +68,7 @@ impl Commit {
     fn parse_commit_type(pair: pest::iterators::Pair<Rule>) -> Result<CommitType, ConventionalCommitError> {
         match pair.as_rule() == Rule::commit_type {
             false => Err(ConventionalCommitError::InvalidParse("commit_type".to_string())),
-            true =>  {
+            true => {
                 let commit_type = CommitType::from(pair.as_str());
                 if commit_type == CommitType::Unknown {
                     return Err(ConventionalCommitError::InvalidCommitType(pair.as_str().to_string()));
@@ -102,7 +102,7 @@ impl Commit {
         }
     }
 
-    fn finalize_commit(commit: &mut Commit) {
+    fn finalize_commit(commit: &mut ConventionalCommit) {
         if commit.commit_type == CommitType::Unknown && commit.scope.is_none() && !commit.subject.is_empty() {
             commit.commit_type = CommitType::NonCompliant;
             tracing::debug!("Setting commit type to {:?} because it was not recognized", commit.commit_type);
@@ -111,7 +111,8 @@ impl Commit {
 
     pub fn is_breaking(&self, breaking_message: impl AsRef<str>) -> bool {
         let breaking_message = breaking_message.as_ref();
-        let result = self.footer
+        let result = self
+            .footer
             .as_ref()
             .map_or(false, |footer| footer.starts_with(breaking_message))
             || self.body.as_ref().map_or(false, |body| body.starts_with(breaking_message))
@@ -123,9 +124,9 @@ impl Commit {
     }
 }
 
-impl From<&Commit> for Commit {
-    fn from(commit: &Commit) -> Self {
-        Commit {
+impl From<&ConventionalCommit> for ConventionalCommit {
+    fn from(commit: &ConventionalCommit) -> Self {
+        ConventionalCommit {
             commit_type: commit.commit_type.clone(),
             scope: commit.scope.clone(),
             subject: commit.subject.clone(),
@@ -136,13 +137,19 @@ impl From<&Commit> for Commit {
     }
 }
 
-impl From<&str> for Commit {
-    fn from(commit_message: &str) -> Self {
-        Commit::new(commit_message).unwrap_or_default()
+impl From<String> for ConventionalCommit {
+    fn from(commit_message: String) -> Self {
+        ConventionalCommit::new(commit_message).unwrap_or_default()
     }
 }
 
-impl TryFrom<&Path> for Commit {
+impl From<&str> for ConventionalCommit {
+    fn from(commit_message: &str) -> Self {
+        ConventionalCommit::new(commit_message).unwrap_or_default()
+    }
+}
+
+impl TryFrom<&Path> for ConventionalCommit {
     type Error = ConventionalCommitError;
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
@@ -200,7 +207,7 @@ mod tests {
         ""
     )]
     #[case::merged_pr_commit("Ignore changes from Black -> Ruff (#4032)", CommitType::NonCompliant, "", "Ignore changes from Black -> Ruff (#4032)", "", "")]
-    #[case::squashed_feature_branch_commit(squashed_feature_branch_commit(), "chore", "package", "upgrade ruff (#4031)", format!("\n{}", squashed_feature_branch_commit_body()), "")]
+    #[case::squashed_feature_branch_commit(squashed_feature_branch_commit(), "chore", "package", "upgrade ruff (#4031)", format!("\n\n{}", squashed_feature_branch_commit_body().trim()), "")]
     #[case::footer_included(
         "feat: add commit message parser\n\nBREAKING CHANGE: this is a breaking change",
         "feat",
@@ -221,7 +228,7 @@ mod tests {
             true => None,
             false => Some(scope.as_ref().to_string()),
         };
-        let commit = Commit::new(commit_message).unwrap();
+        let commit = ConventionalCommit::new(commit_message.as_ref()).unwrap();
         assert_eq!(commit.commit_type, commit_type.into());
         assert_eq!(commit.scope, scope);
         assert_eq!(commit.subject, subject.as_ref());
@@ -230,7 +237,9 @@ mod tests {
             match body.as_ref().is_empty() {
                 true => None,
                 false => Some(body.as_ref().to_string()),
-            }
+            },
+            "Commit input was: {:?}.  Got: {commit:?}",
+            commit_message.as_ref()
         );
         assert_eq!(
             commit.footer,
@@ -244,7 +253,7 @@ mod tests {
     #[rstest]
     #[case::empty("", ConventionalCommitError::InvalidCommitMessage(" --> 1:1\n  |\n1 | \n  | ^---\n  |\n  = expected commit_type or subject".to_string()))]
     fn test_commit_parser_unhappy_paths(#[case] commit_message: impl AsRef<str>, #[case] expected: ConventionalCommitError) {
-        let result = Commit::new(commit_message);
+        let result = ConventionalCommit::new(commit_message);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), expected);
     }
@@ -254,7 +263,7 @@ mod tests {
     #[case::ci("ci(core): add commit message parser", "ci(core): add commit message parser")]
     #[case::feat("feat: add commit message parser", "feat: add commit message parser")]
     #[case::non_compliant("add commit message parser", "add commit message parser")]
-    fn test_display(#[case] commit: impl Into<Commit>, #[case] expected: String) {
+    fn test_display(#[case] commit: impl Into<ConventionalCommit>, #[case] expected: String) {
         assert_eq!(commit.into().to_string(), expected);
     }
 }

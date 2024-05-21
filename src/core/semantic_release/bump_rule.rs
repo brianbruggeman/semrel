@@ -6,17 +6,17 @@ use crate::SimpleVersion;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BumpRule {
-    /// Bump the major version
-    Major,
-    /// Bump the minor version
-    Minor,
-    /// Bump the patch version
-    Patch,
-    /// Explicitly do not bump the version
-    NoBump,
     /// Not set
     #[default]
     Notset,
+    /// Explicitly do not bump the version
+    NoBump,
+    /// Bump the patch version
+    Patch,
+    /// Bump the minor version
+    Minor,
+    /// Bump the major version
+    Major,
 }
 
 impl BumpRule {

@@ -9,6 +9,7 @@ atty = "0.2.14"
 cargo_toml = "0.20.2"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 eyre = "0.6.12"
+git2 = "0.18.3"
 gix = "0.62.0"
 num-traits = "0.2.19"
 package-json = "0.4.0"
@@ -20,6 +21,7 @@ thiserror = "1.0.60"
 tokio = { version = "1.37.0", features = ["full"] }
 toml = { version = "0.8.13", features = ["preserve_order"] }
 tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "serde", "serde_json", "json"] }
 
 [dev-dependencies]
 rstest = "0.19.0"

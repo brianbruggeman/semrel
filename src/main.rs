@@ -76,7 +76,7 @@ fn get_commit_message(opts: &Opts) -> Result<String, anyhow::Error> {
 }
 
 fn get_commit_message_from_repo(path: &str) -> Result<String, anyhow::Error> {
-    Commit::try_from(Path::new(path))
+    ConventionalCommit::try_from(Path::new(path))
         .map(|commit| commit.to_string())
         .map_err(|_why| {
             Opts::command().print_help().unwrap();
@@ -102,8 +102,8 @@ fn init_logging() {
     tracing_subscriber::fmt().with_env_filter(EnvFilter::from_default_env()).init();
 }
 
-fn parse_commit_message(message: &str) -> Result<Commit, anyhow::Error> {
-    Commit::new(message).map_err(|why| {
+fn parse_commit_message(message: &str) -> Result<ConventionalCommit, anyhow::Error> {
+    ConventionalCommit::new(message).map_err(|why| {
         eprintln!("Failed to parse commit message: {}", why);
         std::process::exit(1);
     })

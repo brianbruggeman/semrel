@@ -21,12 +21,12 @@ scope_expression = _{ scope_start ~ whitespace ~ scope ~ whitespace ~ scope_end 
 // Subject of the commit message
 subject = @{ (!NEWLINE ~ ANY)+ }
 
-// Body of the commit message
-body = @{ (!(NEWLINE ~ footer_start) ~ ANY)* }
-
 // Footer of the commit message
 footer_start = _{ "BREAKING CHANGE" }
 footer = @{ (!NEWLINE ~ ANY)+ }
+
+// Body of the commit message
+body = @{ (!(NEWLINE ~ footer_start) ~ ANY)* }
 
 // Complete commit message structure for standard conventional commit with optional scope, body, and footer
 conventional_commit_message = _{
