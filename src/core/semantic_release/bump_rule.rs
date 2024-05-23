@@ -41,11 +41,11 @@ impl FromStr for BumpRule {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "major" => Ok(BumpRule::Major),
-            "minor" => Ok(BumpRule::Minor),
-            "patch" => Ok(BumpRule::Patch),
-            "none" => Ok(BumpRule::NoBump),
+        match s.to_lowercase().as_str() {
+            "major" | "M" | "3" => Ok(BumpRule::Major),
+            "minor" | "m" | "2" => Ok(BumpRule::Minor),
+            "patch" | "p" | "y" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => Ok(BumpRule::Patch),
+            "none" | "n" | "no" | "false" | "f" | "d" | "disable" | "off" | "0" => Ok(BumpRule::NoBump),
             _ => Err(()),
         }
     }
@@ -53,11 +53,11 @@ impl FromStr for BumpRule {
 
 impl From<&str> for BumpRule {
     fn from(s: &str) -> Self {
-        match s {
-            "major" => BumpRule::Major,
-            "minor" => BumpRule::Minor,
-            "patch" => BumpRule::Patch,
-            "none" => BumpRule::NoBump,
+        match s.to_lowercase().as_str() {
+            "major" | "M" | "3" => BumpRule::Major,
+            "minor" | "m" | "2" => BumpRule::Minor,
+            "patch" | "p" | "y" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => BumpRule::Patch,
+            "none" | "n" | "no" | "false" | "f" | "d" | "disable" | "off" | "0" => BumpRule::NoBump,
             _ => BumpRule::Notset,
         }
     }
@@ -65,16 +65,46 @@ impl From<&str> for BumpRule {
 
 impl ValueEnum for BumpRule {
     fn value_variants<'a>() -> &'a [Self] {
-        &[BumpRule::Major, BumpRule::Minor, BumpRule::Patch, BumpRule::NoBump, BumpRule::Notset]
+        &[BumpRule::Major, BumpRule::Minor, BumpRule::Patch, BumpRule::NoBump]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
         Some(match self {
-            BumpRule::Major => clap::builder::PossibleValue::new("major"),
-            BumpRule::Minor => clap::builder::PossibleValue::new("minor"),
-            BumpRule::Patch => clap::builder::PossibleValue::new("patch"),
-            BumpRule::NoBump => clap::builder::PossibleValue::new("none"),
-            BumpRule::Notset => clap::builder::PossibleValue::new("notset"),
+            BumpRule::Major => clap::builder::PossibleValue::new("major")
+                .alias("+++")
+                .alias("3")
+                .alias("M")
+                ,
+            BumpRule::Minor => clap::builder::PossibleValue::new("minor")
+                .alias("++")
+                .alias("2")
+                .alias("m")
+                ,
+            BumpRule::Patch => clap::builder::PossibleValue::new("patch")
+                .alias("+")
+                .alias("p")
+                .alias("y")
+                .alias("yes")
+                .alias("true")
+                .alias("t")
+                .alias("e")
+                .alias("enable")
+                .alias("on")
+                .alias("1")
+                ,
+            BumpRule::NoBump => clap::builder::PossibleValue::new("none")
+                .alias("")
+                .alias("-")
+                .alias("n")
+                .alias("no")
+                .alias("false")
+                .alias("f")
+                .alias("d")
+                .alias("disable")
+                .alias("off")
+                .alias("0")
+                ,
+            _ => clap::builder::PossibleValue::new("notset"),
         })
     }
 }

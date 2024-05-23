@@ -10,6 +10,7 @@ pub fn prune_message(message: impl AsRef<str>) -> String {
                 && !line.starts_with("commit")
                 && !line.starts_with("committer")
                 && !line.starts_with("date")
+                && !line.starts_with("merge")
                 && !line.starts_with("parent")
                 && !line.starts_with("reviewed-by")
                 && !line.starts_with("tree");

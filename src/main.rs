@@ -8,35 +8,34 @@ pub struct Opts {
     /// The commit message to parse
     #[clap(default_value = "")]
     commit_message: String,
-
     /// Path to the project root
     #[clap(short, long, default_value = ".")]
     path: String,
-
     /// Force a bump
-    /// - major, minor, patch, none
-    #[clap(short, long, default_value = "notset")]
-    bump: BumpRule,
-
-    /// Show only the current version
     #[clap(short, long)]
-    current: bool,
-
-    /// Show commit log used to calculate the version
-    #[clap(short, long)]
-    log: bool,
-
-    /// Show release notes
-    #[clap(short, long)]
-    notes: bool,
-
+    bump: Option<BumpRule>,
     /// Update the manifest
-    #[clap(short, long)]
+    #[clap(long)]
     update: bool,
-
     /// Custom rules for commit types (can be comma separated)
     #[clap(short, long, num_args(0..))]
     rule: Vec<String>,
+
+    /// Show only the current version
+    #[clap(long)]
+    current: bool,
+    /// Show commit log used to calculate the version
+    #[clap(long)]
+    log: bool,
+    /// Show release notes
+    #[clap(long)]
+    notes: bool,
+    /// Show the path to the manifest file
+    #[clap(long)]
+    manifest: bool,
+    /// Show the rules
+    #[clap(long)]
+    rules: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -50,6 +49,23 @@ fn main() -> anyhow::Result<()> {
         .collect::<Vec<_>>();
     let changelog = get_changelog(&repo, &rules)?;
     let current_version = changelog.current_version;
+    let bump = opts.bump.unwrap_or_default();
+    let new_version = match bump {
+        BumpRule::Notset => {
+            changelog.next_version(&rules)
+        }
+        _ => {
+            changelog.current_version.bump(bump)
+        }
+    };
+
+    if opts.rules {
+        for (ct, br) in rules {
+            println!("{}: {:?}", ct, br);
+        }
+        return Ok(());
+    }
+
     if opts.current {
         println!("{current_version}");
         return Ok(());
@@ -57,6 +73,12 @@ fn main() -> anyhow::Result<()> {
 
     if opts.notes {
         println!("{}", changelog.release_notes(&rules));
+        return Ok(());
+    }
+
+    if opts.manifest {
+        let manifest_path = find_manifest(path).map_err(|_| RepositoryError::InvalidManifestPath(path.into()))?;
+        println!("{}", manifest_path.display());
         return Ok(());
     }
 
@@ -71,14 +93,11 @@ fn main() -> anyhow::Result<()> {
         let manifest_path = find_manifest(path).map_err(|_| RepositoryError::InvalidManifestPath(path.into()))?;
         let data = std::fs::read_to_string(&manifest_path)?;
         let mut manifest = SupportedManifest::parse(&manifest_path, data)?;
-        let new_version = changelog.next_version(&rules);
         manifest.set_version(new_version)?;
         manifest.write(&manifest_path)?;
         return Ok(());
     }
 
-    let new_version = changelog.next_version(&rules);
     println!("{new_version}");
-
     Ok(())
 }

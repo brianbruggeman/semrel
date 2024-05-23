@@ -137,6 +137,16 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
             if !capture {
                 break;
             }
+        } else {
+            let data = load_file_data(repo, &commit, filename.clone())?;
+            let previous_version = SupportedManifest::parse(filename.clone(), &data)?.version()?;
+            if previous_version < current_version {
+                // So when the current commit is the one that's updated the version, we want to exclude it
+                if captured_commits.len() == 1 {
+                    captured_commits.clear();
+                }
+                break
+            }
         }
         if capture {
             captured_commits.push(commit_info);

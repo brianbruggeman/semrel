@@ -84,14 +84,14 @@ MVP
 - [x] Display the current version with --current
 - [x] Create a specific bump rule with --rule=<prefix>=patch|minor|major to create a custom rule
 - [x] Search through the commit history to find the last version bump
-- [ ] Search through the commit history to collect all of the previous commits since the last relevant version bump on the same level as the current bump rule
+- [x] Search through the commit history to collect all of the previous commits since the last relevant version bump on the same level as the current bump rule
 
 Ideal
-- [ ] Display the commits that are used to produce the new version --log
-- [ ] Display the release notes --notes
-- [ ] Display manifest file with --manifest
-- [ ] Update the manifest file with --update
-- [ ] Create a commit with --commit
+- [x] Display the commits that are used to produce the new version --log
+- [x] Display the release notes --notes
+- [x] Display manifest file with --manifest
+- [x] Update the manifest file with --update
+- [ ] Create a commit with --commit when using --update
 - [ ] Create a configuration file and allow people to customize the rules
 
 Stretch
