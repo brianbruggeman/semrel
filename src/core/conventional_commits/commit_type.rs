@@ -55,6 +55,50 @@ pub enum CommitType {
     Unknown,
 }
 
+impl CommitType {
+
+    pub fn as_release_note(&self) -> &str {
+        match self {
+            CommitType::Feat => "Features",
+            CommitType::Fix => "Fixes",
+            CommitType::Perf => "Performance",
+            CommitType::Refactor => "Refactor",
+            CommitType::Revert => "Revert",
+            CommitType::Style => "Style",
+            CommitType::Test => "Test",
+            CommitType::Build => "Build",
+            CommitType::Chore => "Chore",
+            CommitType::Ci => "Continuous Integration",
+            CommitType::Cd => "Deployment",
+            CommitType::Docs => "Documentation",
+            CommitType::Custom(value) => value.as_str(),
+            CommitType::NonCompliant => "Non Compliant",
+            CommitType::Unknown => "Unknown",
+        }
+    }
+
+    /// Returns the commit type as a string
+    pub fn as_str(&self) -> &str {
+        match self {
+            CommitType::Feat => "feat",
+            CommitType::Fix => "fix",
+            CommitType::Perf => "perf",
+            CommitType::Refactor => "refactor",
+            CommitType::Revert => "revert",
+            CommitType::Style => "style",
+            CommitType::Test => "test",
+            CommitType::Build => "build",
+            CommitType::Chore => "chore",
+            CommitType::Ci => "ci",
+            CommitType::Cd => "cd",
+            CommitType::Docs => "docs",
+            CommitType::Custom(value) => value.as_str(),
+            CommitType::NonCompliant => "NonCompliant",
+            CommitType::Unknown => "Unknown",
+        }
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for CommitType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -94,16 +138,16 @@ impl FromStr for CommitType {
         match s.to_lowercase().as_str() {
             "build" => Ok(CommitType::Build),
             "chore" => Ok(CommitType::Chore),
-            "ci" => Ok(CommitType::Ci),
-            "cd" => Ok(CommitType::Cd),
-            "docs" => Ok(CommitType::Docs),
-            "feat" => Ok(CommitType::Feat),
-            "fix" => Ok(CommitType::Fix),
-            "perf" => Ok(CommitType::Perf),
+            "ci" | "continuous integration" => Ok(CommitType::Ci),
+            "cd" | "deploy" => Ok(CommitType::Cd),
+            "doc" | "docs" | "documentation" => Ok(CommitType::Docs),
+            "feat" | "feature" | "features" => Ok(CommitType::Feat),
+            "fix" | "fixes" => Ok(CommitType::Fix),
+            "perf" | "performance" => Ok(CommitType::Perf),
             "refactor" => Ok(CommitType::Refactor),
             "revert" => Ok(CommitType::Revert),
             "style" => Ok(CommitType::Style),
-            "test" => Ok(CommitType::Test),
+            "test" | "tests" => Ok(CommitType::Test),
             _ => Ok(CommitType::Custom(s.to_string())),
         }
     }
@@ -117,23 +161,7 @@ impl From<&CommitType> for CommitType {
 
 impl fmt::Display for CommitType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CommitType::Custom(value) => write!(f, "{}", value),
-            CommitType::NonCompliant => write!(f, "NonCompliant"),
-            CommitType::Unknown => write!(f, "Unknown"),
-            CommitType::Build => write!(f, "Build"),
-            CommitType::Chore => write!(f, "Chore"),
-            CommitType::Ci => write!(f, "Continuous Integration"),
-            CommitType::Cd => write!(f, "Deployment"),
-            CommitType::Docs => write!(f, "Documentation"),
-            CommitType::Feat => write!(f, "Features"),
-            CommitType::Fix => write!(f, "Fixes"),
-            CommitType::Perf => write!(f, "Performance"),
-            CommitType::Refactor => write!(f, "Refactor"),
-            CommitType::Revert => write!(f, "Revert"),
-            CommitType::Style => write!(f, "Style"),
-            CommitType::Test => write!(f, "Test"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 

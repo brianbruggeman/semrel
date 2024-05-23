@@ -51,7 +51,7 @@ impl ChangeLog {
         let today = chrono::Local::now();
         let mut notes = format!("# Release notes: {} ({})\n", self.next_version(rules), today.format("%Y-%m-%d"));
         for (commit_type, scopes) in aggregated_commits {
-            notes.push_str(&format!("\n\n## {}\n", commit_type));
+            notes.push_str(&format!("\n\n## {}\n", commit_type.as_release_note()));
             for (scope, commits) in scopes {
                 if !scope.is_empty() {
                     notes.push_str(&format!("\n### {}\n", scope));

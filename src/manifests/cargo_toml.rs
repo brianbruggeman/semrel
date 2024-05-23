@@ -121,7 +121,6 @@ impl Manifest for CargoToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::debug!("Parsing Cargo.toml");
         let data = data.as_ref().as_bytes();
-        tracing::debug!("Data: {:?}", data);
         if data.is_empty() {
             return Err(ManifestError::InvalidManifest("Manifest is empty!".to_string()));
         }

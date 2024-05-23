@@ -50,7 +50,7 @@ impl SupportedManifest {
             p if p.contains(pyproject_toml) => SupportedManifest::Python(PyProjectToml::parse(data)?),
             _ => return Err(ManifestError::InvalidManifestPath(path.to_path_buf())),
         };
-        tracing::debug!("Parsed manifest: {:?}", parsed);
+        tracing::debug!("Parsed manifest version: {:?}", parsed.version()?);
         Ok(parsed)
     }
 
