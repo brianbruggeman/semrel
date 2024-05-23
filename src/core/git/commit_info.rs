@@ -1,33 +1,41 @@
 use std::path::{Path, PathBuf};
 
-use crate::{get_rule, BumpRule, CommitType, ConventionalCommit};
+use crate::{match_rule, BumpRule, CommitType, ConventionalCommit};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, serde::Deserialize, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct CommitInfo {
+    // The commit id
     pub id: String,
+    // The files that were changed in the commit
     pub files: Vec<PathBuf>,
+    // The commit message
     pub commit: ConventionalCommit,
+    // The timestamp of the commit
+    pub timestamp: u64,
 }
 
 impl CommitInfo {
-    pub fn new(id: impl Into<String>, files: &[impl Into<PathBuf> + Clone], commit: impl Into<ConventionalCommit>) -> Self {
+    pub fn new<I: IntoIterator<Item = impl Into<PathBuf> + Clone>>(id: impl Into<String>, files: I, commit: impl Into<ConventionalCommit>, timestamp: u64) -> Self {
         Self {
             id: id.into(),
-            files: files.iter().map(|file| file.clone().into()).collect(),
+            files: files.into_iter().map(|file| file.into()).collect(),
             commit: commit.into(),
+            timestamp,
         }
     }
 
-    pub fn rule(&self, rules: &[(impl Into<CommitType> + Clone, impl Into<BumpRule> + Clone)]) -> BumpRule {
-        let rules = rules
-            .iter()
-            .map(|(ct, br)| (ct.clone().into(), br.clone().into()))
-            .collect::<Vec<_>>();
+    /// Creates a string representation of the commit
+    pub fn message(&self) -> String {
+        self.commit.message()
+    }
+
+    pub fn rule(&self, rules: &[(CommitType, BumpRule)]) -> BumpRule {
+        let rules = rules.iter().map(|(ct, br)| (ct.into(), *br)).collect::<Vec<_>>();
         let rules = match rules.is_empty() {
             true => crate::build_default_rules().collect::<Vec<_>>(),
             false => rules,
         };
-        get_rule(rules.into_iter(), self.commit.commit_type.clone())
+        match_rule(rules, self.commit.commit_type.clone())
     }
 
     pub fn contains(&self, file: impl AsRef<Path>) -> bool {

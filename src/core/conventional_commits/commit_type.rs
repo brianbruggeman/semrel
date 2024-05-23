@@ -4,34 +4,8 @@ use std::str::FromStr;
 use crate::ConventionalCommitError;
 
 /// A commit message that follows the conventional commit standard
-#[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Hash, PartialOrd, Ord, serde::Serialize)]
 pub enum CommitType {
-    /// A custom commit type that is not part of the standard list
-    /// example: `ENG-2345: updated dependencies`
-    Custom(String),
-    /// A commit that does not follow the conventional commit standard
-    /// example: `updated dependencies`
-    NonCompliant,
-    /// An unknown commit type
-    /// This is the default commit type, and probably should only be
-    ///  used for testing purposes
-    #[default]
-    Unknown,
-    /// A commit that is used to build the project
-    /// example: `build: update dependencies`
-    Build,
-    /// A commit that is used to perform a task that is not user-facing
-    /// example: `chore: upgrade dependencies`
-    Chore,
-    /// A commit that is used to perform a task related to the CI pipeline
-    /// example: `ci: run tests on Windows`
-    Ci,
-    /// A commit that is used to perform a task related to the CD pipeline
-    /// example: `cd: deploy to production`
-    Cd,
-    /// A commit that is used to update documentation
-    /// example: `docs: add usage instructions to README.md`
-    Docs,
     /// A commit that is used to add a new feature
     /// example: `feat: add support for dark mode`
     Feat,
@@ -53,6 +27,32 @@ pub enum CommitType {
     /// A commit that is used to add or update tests
     /// example: `test: add unit tests for feature X`
     Test,
+    /// A commit that is used to build the project
+    /// example: `build: update dependencies`
+    Build,
+    /// A commit that is used to perform a task that is not user-facing
+    /// example: `chore: upgrade dependencies`
+    Chore,
+    /// A commit that is used to perform a task related to the CI pipeline
+    /// example: `ci: run tests on Windows`
+    Ci,
+    /// A commit that is used to perform a task related to the CD pipeline
+    /// example: `cd: deploy to production`
+    Cd,
+    /// A commit that is used to update documentation
+    /// example: `docs: add usage instructions to README.md`
+    Docs,
+    /// A custom commit type that is not part of the standard list
+    /// example: `ENG-2345: updated dependencies`
+    Custom(String),
+    /// A commit that does not follow the conventional commit standard
+    /// example: `updated dependencies`
+    NonCompliant,
+    /// An unknown commit type
+    /// This is the default commit type, and probably should only be
+    ///  used for testing purposes
+    #[default]
+    Unknown,
 }
 
 impl<'de> serde::Deserialize<'de> for CommitType {
@@ -121,18 +121,18 @@ impl fmt::Display for CommitType {
             CommitType::Custom(value) => write!(f, "{}", value),
             CommitType::NonCompliant => write!(f, "NonCompliant"),
             CommitType::Unknown => write!(f, "Unknown"),
-            CommitType::Build => write!(f, "build"),
-            CommitType::Chore => write!(f, "chore"),
-            CommitType::Ci => write!(f, "ci"),
-            CommitType::Cd => write!(f, "cd"),
-            CommitType::Docs => write!(f, "docs"),
-            CommitType::Feat => write!(f, "feat"),
-            CommitType::Fix => write!(f, "fix"),
-            CommitType::Perf => write!(f, "perf"),
-            CommitType::Refactor => write!(f, "refactor"),
-            CommitType::Revert => write!(f, "revert"),
-            CommitType::Style => write!(f, "style"),
-            CommitType::Test => write!(f, "test"),
+            CommitType::Build => write!(f, "Build"),
+            CommitType::Chore => write!(f, "Chore"),
+            CommitType::Ci => write!(f, "Continuous Integration"),
+            CommitType::Cd => write!(f, "Deployment"),
+            CommitType::Docs => write!(f, "Documentation"),
+            CommitType::Feat => write!(f, "Features"),
+            CommitType::Fix => write!(f, "Fixes"),
+            CommitType::Perf => write!(f, "Performance"),
+            CommitType::Refactor => write!(f, "Refactor"),
+            CommitType::Revert => write!(f, "Revert"),
+            CommitType::Style => write!(f, "Style"),
+            CommitType::Test => write!(f, "Test"),
         }
     }
 }

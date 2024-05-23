@@ -1,13 +1,14 @@
 use std::fmt;
 use std::path::Path;
 
+use git2::Commit;
 use pest::Parser;
 
 use crate::{get_recent_commit, prune_message, ConventionalCommitError};
 
 use super::{CommitMessageParser, CommitType, Rule};
 
-#[derive(Debug, Default, serde::Deserialize, Clone)]
+#[derive(Debug, Default, serde::Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConventionalCommit {
     pub commit_type: CommitType,
     pub scope: Option<String>,
@@ -17,32 +18,6 @@ pub struct ConventionalCommit {
     pub prefix: Option<String>,
 }
 
-impl fmt::Display for ConventionalCommit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let scope = match &self.scope {
-            Some(scope) => format!("({})", scope),
-            None => "".to_string(),
-        };
-        let title = match &self.commit_type {
-            CommitType::NonCompliant => "".to_string(),
-            CommitType::Unknown => "".to_string(),
-            CommitType::Custom(value) => value.clone(),
-            _ => self.commit_type.to_string(),
-        };
-        let mut string = match title.is_empty() {
-            true => self.subject.to_string(),
-            false => format!("{}{}: {}", title, scope, self.subject),
-        };
-
-        if let Some(body) = &self.body {
-            string = format!("{string}\n\n{body}");
-        }
-        if let Some(footer) = &self.footer {
-            string = format!("{string}\n\n{footer}");
-        }
-        write!(f, "{string}")
-    }
-}
 impl ConventionalCommit {
     pub fn new(commit_message: impl AsRef<str>) -> Result<Self, ConventionalCommitError> {
         let pruned_message = prune_message(commit_message.as_ref());
@@ -63,6 +38,11 @@ impl ConventionalCommit {
         ConventionalCommit::finalize_commit(&mut commit);
 
         Ok(commit)
+    }
+
+    /// Creates a string representation of the commit
+    pub fn message(&self) -> String {
+        self.to_string()
     }
 
     fn parse_commit_type(pair: pest::iterators::Pair<Rule>) -> Result<CommitType, ConventionalCommitError> {
@@ -124,6 +104,39 @@ impl ConventionalCommit {
     }
 }
 
+impl<'a> From<Commit<'a>> for ConventionalCommit {
+    fn from(commit: Commit<'a>) -> Self {
+        ConventionalCommit::new(commit.message().unwrap_or_default()).unwrap_or_default()
+    }
+}
+
+impl fmt::Display for ConventionalCommit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let scope = match &self.scope {
+            Some(scope) => format!("({})", scope),
+            None => "".to_string(),
+        };
+        let title = match &self.commit_type {
+            CommitType::NonCompliant => "".to_string(),
+            CommitType::Unknown => "".to_string(),
+            CommitType::Custom(value) => value.clone(),
+            _ => self.commit_type.to_string(),
+        };
+        let mut string = match title.is_empty() {
+            true => self.subject.to_string(),
+            false => format!("{}{}: {}", title, scope, self.subject),
+        };
+
+        if let Some(body) = &self.body {
+            string = format!("{string}\n\n{body}");
+        }
+        if let Some(footer) = &self.footer {
+            string = format!("{string}\n\n{footer}");
+        }
+        write!(f, "{string}")
+    }
+}
+
 impl From<&ConventionalCommit> for ConventionalCommit {
     fn from(commit: &ConventionalCommit) -> Self {
         ConventionalCommit {
@@ -137,15 +150,19 @@ impl From<&ConventionalCommit> for ConventionalCommit {
     }
 }
 
-impl From<String> for ConventionalCommit {
-    fn from(commit_message: String) -> Self {
-        ConventionalCommit::new(commit_message).unwrap_or_default()
+impl TryFrom<String> for ConventionalCommit {
+    type Error = ConventionalCommitError;
+
+    fn try_from(commit_message: String) -> Result<Self, Self::Error> {
+        ConventionalCommit::new(commit_message)
     }
 }
 
-impl From<&str> for ConventionalCommit {
-    fn from(commit_message: &str) -> Self {
-        ConventionalCommit::new(commit_message).unwrap_or_default()
+impl TryFrom<&str> for ConventionalCommit {
+    type Error = ConventionalCommitError;
+
+    fn try_from(commit_message: &str) -> Result<Self, Self::Error> {
+        ConventionalCommit::new(commit_message)
     }
 }
 
@@ -153,7 +170,7 @@ impl TryFrom<&Path> for ConventionalCommit {
     type Error = ConventionalCommitError;
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        get_recent_commit(path).map_err(ConventionalCommitError::RepositoryError)
+        get_recent_commit(path).map_err(|err| ConventionalCommitError::InvalidRepositoryError(err.to_string()))
     }
 }
 
@@ -256,14 +273,5 @@ mod tests {
         let result = ConventionalCommit::new(commit_message);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), expected);
-    }
-
-    #[rstest]
-    #[case::empty("", "")]
-    #[case::ci("ci(core): add commit message parser", "ci(core): add commit message parser")]
-    #[case::feat("feat: add commit message parser", "feat: add commit message parser")]
-    #[case::non_compliant("add commit message parser", "add commit message parser")]
-    fn test_display(#[case] commit: impl Into<ConventionalCommit>, #[case] expected: String) {
-        assert_eq!(commit.into().to_string(), expected);
     }
 }

@@ -9,9 +9,20 @@ pub trait ManifestStatic {
 
 pub trait ManifestObjectSafe {
     fn version(&self) -> Result<SimpleVersion, ManifestError>;
+    fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError>
+    where
+        Self: Sized;
+    fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError>
+    where
+        Self: Sized;
 }
 
 pub trait Manifest: ManifestStatic + ManifestObjectSafe {
+    /// This will attempt to determine the manifest path by
+    fn filename(&self) -> &'static str {
+        Self::manifest_filename()
+    }
+
     #[allow(unused_variables)]
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError>
     where
@@ -48,7 +59,7 @@ pub trait Manifest: ManifestStatic + ManifestObjectSafe {
     }
 
     fn repo_root(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError> {
-        top_of_repo(path).map_err(ManifestError::RepositoryError)
+        top_of_repo(path).map_err(|err| ManifestError::InvalidRepository(err.to_string()))
     }
 
     fn load(path: impl AsRef<Path>) -> Result<String, ManifestError>

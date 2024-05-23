@@ -1,17 +1,26 @@
-use std::str::FromStr;
+use std::path::PathBuf;
+
+use package_json::PackageJson as PkgJson;
+use serde_json::to_string;
 
 use crate::{
     core::{Manifest, ManifestError, SimpleVersion},
     ManifestObjectSafe, ManifestStatic,
 };
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct PackageJson {
-    version: SimpleVersion,
+    manifest: PkgJson,
 }
 
 impl PackageJson {
     pub fn new(version: impl Into<SimpleVersion>) -> Self {
-        Self { version: version.into() }
+        let version = version.into();
+        let manifest = PkgJson {
+            version: version.to_string(),
+            ..Default::default()
+        };
+        Self { manifest }
     }
 }
 
@@ -23,15 +32,41 @@ impl ManifestStatic for PackageJson {
 
 impl ManifestObjectSafe for PackageJson {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
-        Ok(self.version)
+        let version = self
+            .manifest
+            .version
+            .parse::<SimpleVersion>()
+            .map_err(|e| ManifestError::InvalidManifest(format!("Invalid version part: {}", e)))?;
+        Ok(version)
+    }
+
+    fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError> {
+        self.manifest.version = version.into().to_string();
+        Ok(())
+    }
+
+    fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
+        let path = path.into();
+        let data = serde_json::to_string_pretty(&self.manifest).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
+        std::fs::write(path, data).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
+        Ok(())
     }
 }
 
 impl Manifest for PackageJson {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
-        let package = serde_json::from_str::<package_json::PackageJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
-        let version = SimpleVersion::from_str(&package.version).map_err(|e| ManifestError::InvalidManifest(format!("Invalid version part: {}", e)))?;
-        Ok(Self::new(version))
+        tracing::debug!("Parsing package.json");
+        let manifest = serde_json::from_str::<PkgJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
+        tracing::debug!("Parsed: {:?}", manifest);
+        Ok(Self { manifest })
+    }
+}
+
+impl PartialEq for PackageJson {
+    fn eq(&self, other: &Self) -> bool {
+        let self_json = to_string(&self.manifest).unwrap_or_default();
+        let other_json = to_string(&other.manifest).unwrap_or_default();
+        self_json == other_json
     }
 }
 
@@ -128,7 +163,7 @@ mod tests {
     fn test_parse(#[case] data: &str, #[case] expected: Result<PackageJson, ManifestError>) {
         let result = PackageJson::parse(data);
         match (&result, &expected) {
-            (Ok(result), Ok(expected)) => assert_eq!(result, expected),
+            (Ok(result), Ok(expected)) => assert_eq!(result.version(), expected.version()),
             (Err(_result), Err(_expected)) => {}
             _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }

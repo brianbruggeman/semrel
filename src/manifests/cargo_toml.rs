@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -96,12 +98,35 @@ impl ManifestObjectSafe for CargoToml {
             None => Err(ManifestError::InvalidManifest("Missing package".to_string())),
         }
     }
+
+    fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError> {
+        let version = version.into();
+        let version_string = version.to_string();
+        if let Some(package) = self.manifest.package.as_mut() {
+            package.version.set(version_string);
+        }
+        Ok(())
+    }
+
+    fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
+        let toml_string = toml::to_string(&self.manifest).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        let mut file = File::create(path.into()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        file.write_all(toml_string.as_bytes())
+            .map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        Ok(())
+    }
 }
 
 impl Manifest for CargoToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
+        tracing::debug!("Parsing Cargo.toml");
         let data = data.as_ref().as_bytes();
+        tracing::debug!("Data: {:?}", data);
+        if data.is_empty() {
+            return Err(ManifestError::InvalidManifest("Manifest is empty!".to_string()));
+        }
         let manifest = cargo_toml::Manifest::from_slice(data).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        tracing::debug!("Parsed manifest.");
         Ok(Self { manifest })
     }
 }

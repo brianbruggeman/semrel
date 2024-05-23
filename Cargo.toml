@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.83"
 atty = "0.2.14"
 cargo_toml = "0.20.2"
+chrono = "0.4.38"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 eyre = "0.6.12"
 git2 = "0.18.3"

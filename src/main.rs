@@ -26,6 +26,18 @@ pub struct Opts {
     #[clap(short, long)]
     current: bool,
 
+    /// Show commit log used to calculate the version
+    #[clap(short, long)]
+    log: bool,
+
+    /// Show release notes
+    #[clap(short, long)]
+    notes: bool,
+
+    /// Update the manifest
+    #[clap(short, long)]
+    update: bool,
+
     /// Custom rules for commit types (can be comma separated)
     #[clap(short, long, num_args(0..))]
     rule: Vec<String>,
@@ -38,6 +50,39 @@ fn main() -> anyhow::Result<()> {
     let current_version = get_current_version(&opts.path)?;
     if opts.current {
         show_current_version(&current_version);
+        return Ok(());
+    }
+
+    let path = &opts.path;
+    let repo = get_repo(path).map_err(|_| RepositoryError::InvalidRepositoryPath(path.into()))?;
+    let rules = parse_rules(&opts.rule)?
+        .chain(build_default_rules())
+        .collect::<Vec<_>>();
+    let changelog = get_changelog(&repo, &rules)?;
+
+    if opts.current {
+        show_current_version(&current_version);
+        return Ok(());
+    }
+    if opts.notes {
+        println!("{}", changelog.release_notes(&rules));
+        return Ok(());
+    }
+
+    if opts.log {
+        for commit_info in changelog.changes {
+            println!("{}", commit_info.message());
+        }
+        return Ok(());
+    }
+
+    if opts.update {
+        let manifest_path = find_manifest(path).map_err(|_| RepositoryError::InvalidManifestPath(path.into()))?;
+        let data = std::fs::read_to_string(&manifest_path)?;
+        let mut manifest = SupportedManifest::parse(&manifest_path, data)?;
+        let new_version = changelog.next_version(&rules);
+        manifest.set_version(new_version)?;
+        manifest.write(&manifest_path)?;
         return Ok(());
     }
 

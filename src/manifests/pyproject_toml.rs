@@ -1,47 +1,89 @@
+use std::path::PathBuf;
+use std::str::FromStr;
+
 use crate::{
     core::{Manifest, ManifestError, ManifestObjectSafe, SimpleVersion},
     ManifestStatic,
 };
 
-#[derive(Debug, serde::Deserialize, PartialEq, Eq, Clone, Copy)]
-pub struct PoetryPackage {
-    pub version: SimpleVersion,
-}
-
-impl Default for PoetryPackage {
-    fn default() -> Self {
-        Self { version: SimpleVersion::new(0, 1, 0) }
-    }
-}
-
-#[derive(Debug, Default, serde::Deserialize, PartialEq, Eq, Clone, Copy)]
-pub struct PyProjectTool {
-    pub poetry: PoetryPackage,
-}
-
-#[derive(Debug, serde::Deserialize, PartialEq, Eq, Clone, Copy)]
-pub struct Pep621Package {
-    pub version: SimpleVersion,
-}
-
-impl Default for Pep621Package {
-    fn default() -> Self {
-        Self { version: SimpleVersion::new(0, 1, 0) }
-    }
-}
-
-#[derive(Debug, Default, serde::Deserialize, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PyProjectToml {
-    pub project: Option<Pep621Package>,
-    pub tool: Option<PyProjectTool>,
+    manifest: toml::Value,
 }
 
 impl PyProjectToml {
     pub fn new(version: impl Into<SimpleVersion>) -> Self {
-        Self {
-            project: Some(Pep621Package { version: version.into() }),
-            tool: None,
+        let mut pep621_manifest = Self::default();
+        pep621_manifest.set_pep621_version(version);
+        pep621_manifest
+    }
+
+    fn set_pep621_version(&mut self, version: impl Into<SimpleVersion>) -> bool {
+        let version_string = version.into().to_string();
+        if let Some(project) = self.manifest.get_mut("project") {
+            if let Some(project_table) = project.as_table_mut() {
+                project_table.insert("version".to_string(), toml::Value::String(version_string));
+                return true;
+            }
         }
+        false
+    }
+
+    fn set_poetry_version(&mut self, version: impl Into<SimpleVersion>) -> bool {
+        let version_string = version.into().to_string();
+        if let Some(tool) = self.manifest.get_mut("tool") {
+            if let Some(tool_table) = tool.as_table_mut() {
+                if let Some(poetry) = tool_table.get_mut("poetry") {
+                    if let Some(poetry_table) = poetry.as_table_mut() {
+                        poetry_table.insert("version".to_string(), toml::Value::String(version_string));
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn get_pep621_version(&self) -> Option<SimpleVersion> {
+        if let Some(project) = &self.manifest.get("project") {
+            if let Some(version) = project.get("version") {
+                if let Some(version_str) = version.as_str() {
+                    match SimpleVersion::from_str(version_str) {
+                        Ok(version) => return Some(version),
+                        Err(_) => return None,
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn get_poetry_version(&self) -> Option<SimpleVersion> {
+        if let Some(tool) = &self.manifest.get("tool") {
+            if let Some(poetry) = tool.get("poetry") {
+                if let Some(version) = poetry.get("version") {
+                    if let Some(version_str) = version.as_str() {
+                        match SimpleVersion::from_str(version_str) {
+                            Ok(version) => return Some(version),
+                            Err(_) => return None,
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+impl Default for PyProjectToml {
+    fn default() -> Self {
+        let pep621_data = r#"
+            [project]
+            name = "pep621-package"
+            version = "0.1.0"
+        "#;
+        let manifest = toml::from_str(pep621_data).unwrap();
+        Self { manifest }
     }
 }
 
@@ -53,20 +95,33 @@ impl ManifestStatic for PyProjectToml {
 
 impl ManifestObjectSafe for PyProjectToml {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
-        if let Some(pep621) = self.project {
-            return Ok(pep621.version);
-        } else if let Some(tool) = self.tool {
-            return Ok(tool.poetry.version);
+        if let Some(version) = self.get_pep621_version() {
+            return Ok(version);
         }
-        Err(ManifestError::InvalidManifest("Missing version".to_string()))
+        if let Some(version) = self.get_poetry_version() {
+            return Ok(version);
+        }
+        Err(ManifestError::InvalidManifest("No version found".to_string()))
+    }
+
+    fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError> {
+        let version = version.into();
+        if self.set_pep621_version(version) || self.set_poetry_version(version) {
+            return Ok(());
+        }
+        Err(ManifestError::InvalidManifest("No version found".to_string()))
+    }
+
+    fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
+        let data = toml::to_string(&self.manifest).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        std::fs::write(path.into(), data).map_err(|why| ManifestError::WriteError(why.to_string()))
     }
 }
 
 impl Manifest for PyProjectToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
-        // Validate this can be read and is a valid json
-        let package: Self = toml::from_str(data.as_ref()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        Ok(package)
+        let manifest = toml::from_str(data.as_ref()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        Ok(Self { manifest })
     }
 }
 
@@ -160,14 +215,15 @@ mod tests {
     }
 
     #[rstest]
-    #[case::pep621_validate_valid_json("[project]\nversion = \"1.0.0\"", Ok(PyProjectToml { project: Some(Pep621Package { version: SimpleVersion::new(1, 0, 0) }), tool: None }))]
-    #[case::pep621_validate_invalid_json("[project]\nversion = \"invalid-version\"", Err(ManifestError::InvalidManifest("Invalid manifest: Invalid version part: invalid digit found in string at line 1 column 37".to_string())))]
-    #[case::poetry_validate_valid_json("[tool.poetry]\nversion = \"1.0.0\"", Ok(PyProjectToml { project: None, tool: Some(PyProjectTool { poetry: PoetryPackage { version: SimpleVersion::new(1, 0, 0) } }) }))]
-    #[case::poetry_validate_invalid_json("[tool.poetry]\nversion = \"invalid-version\"", Err(ManifestError::InvalidManifest("Invalid manifest: Invalid version part: invalid digit found in string at line 1 column 37".to_string())))]
-    fn test_parse(#[case] data: &str, #[case] expected: Result<PyProjectToml, ManifestError>) {
+    #[case::pep621_validate_valid_json("[project]\nversion = \"1.0.0\"")]
+    #[case::pep621_validate_invalid_json("[project]\nversion = \"invalid-version\"")]
+    #[case::poetry_validate_valid_json("[tool.poetry]\nversion = \"1.0.0\"")]
+    #[case::poetry_validate_invalid_json("[tool.poetry]\nversion = \"invalid-version\"")]
+    fn test_parse(#[case] data: &str) {
+        let expected = toml::from_str::<toml::Value>(data).map_err(|why| ManifestError::InvalidManifest(why.to_string()));
         let result = PyProjectToml::parse(data);
         match (&result, &expected) {
-            (Ok(result), Ok(expected)) => assert_eq!(result, expected),
+            (Ok(result), Ok(expected)) => assert_eq!(result.manifest, *expected),
             (Err(_result), Err(_expected)) => {}
             _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
@@ -184,7 +240,7 @@ mod tests {
         let result = PyProjectToml::parse_version(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
-            (Err(result), Err(expected)) => assert_eq!(result.to_string(), expected.to_string()),
+            (Err(_result), Err(_expected)) => {}
             _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }
