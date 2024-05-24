@@ -1,0 +1,38 @@
+name: Bump Version
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build semrel
+        run: cargo build --release
+
+      - name: Update version
+        run: ./target/release/semrel --update
+
+      - name: Get new version
+        id: get_version
+        run: echo "::set-output name=version::$(./target/release/semrel --current)"
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit Cargo.* -m 'release: ${VERSION}'
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
