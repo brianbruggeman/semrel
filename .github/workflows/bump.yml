@@ -2,8 +2,6 @@ name: Bump Version
 
 on:
   push:
-    branches:
-      - fix-bump-push
   # workflow_run:
   #   workflows: ["CI"]
   #   types: ["completed"]
