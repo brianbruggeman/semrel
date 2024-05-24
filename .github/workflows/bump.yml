@@ -19,7 +19,24 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Cache semrel build
+        id: cache-semrel
+        uses: actions/cache@v2
+        with:
+          path: target/release/semrel
+          key: ${{ runner.os }}-semrel-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check if semrel is cached
+        id: semrel-check
+        run: |
+          if [ -f target/release/semrel ]; then
+            echo "::set-output name=cached::true"
+          else
+            echo "::set-output name=cached::false"
+          fi
+
       - name: Build semrel
+        if: steps.semrel-check.outputs.cached != 'true'
         run: cargo build --release
 
       - name: Update version
@@ -36,3 +53,6 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git commit Cargo.* -m 'release: ${VERSION}'
+
+      - name: Push changes
+        run: git push origin HEAD:main
