@@ -14,6 +14,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          # we need to fetch the whole history or semrel won't work
+          fetch-depth: 0
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -58,6 +61,6 @@ jobs:
           echo "next version: `./target/release/semrel show next`"
           echo "log: `./target/release/semrel show log`"
           git add .
-          git commit -m "release: `./target/release/semrel show next`\n\n`./target/release/semrel notes`"
+          git commit -m "release: `./target/release/semrel show next`\n\n`./target/release/semrel show notes`"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
