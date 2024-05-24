@@ -144,7 +144,7 @@ jobs:
           mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin
           mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl
           mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl
-          ln -s x86_64-unix-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl /usr/local/bin/semrel
+          ln -s x86_64-unix-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl /usr/bin/semrel
       - name: Package Artifacts
         run: |
           tar czvf arm64-apple-darwin.tgz -C aarch64-apple-darwin .
