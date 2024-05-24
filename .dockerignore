@@ -1,0 +1,16 @@
+# rust
+target/
+
+# git
+.github/
+.git/
+.gitignore
+
+# macos
+*.dSYM/
+*.o
+*.a
+*.dylib
+*.swp
+.DS_Store
+*.lock
