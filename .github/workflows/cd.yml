@@ -33,12 +33,9 @@ jobs:
         with:
           command: install
           args: cross
-      - name: Build
-        uses: actions-rs/cross@v0.2.1
-        with:
-          target: ${{ matrix.target }}
-          command: build
-          args: --release
+      - name: Cross Build
+        run: |
+          cargo build --target ${{ matrix.target }} --release
 
   build:
     strategy:
