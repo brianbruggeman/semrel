@@ -114,7 +114,7 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   release:
-    needs: [cross-build, native-build, bump-version]
+    needs: [cross-build, native-build]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
