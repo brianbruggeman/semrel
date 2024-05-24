@@ -107,10 +107,6 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
     let mut captured_commits = vec![];
     let rules = rules.to_vec();
     for commit_info in commits {
-        let bump_rule = commit_info.rule(&rules);
-        if bump_rule > max_bump {
-            max_bump = bump_rule;
-        }
         let mut capture = true;
         let oid = Oid::from_str(&commit_info.id).map_err(|_| RepositoryError::InvalidRepositoryPath(PathBuf::from(&commit_info.id)))?;
         let commit = repo
@@ -126,15 +122,30 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
             let data = load_file_data(repo, &commit, path)?;
             let previous_version = SupportedManifest::parse(path, &data)?.version()?;
             if previous_version < current_version {
+                let bump_rule = commit_info.rule(&rules);
+                if bump_rule > max_bump {
+                    tracing::debug!("New max bump: {:?} from commit: {} {}", bump_rule, commit_info.id, commit_info.message());
+                    max_bump = bump_rule;
+                }
                 // Only include commits that are part of the previous bump at the same level
                 match (bump_rule, previous_version.minor(), previous_version.patch()) {
-                    (BumpRule::Major, 0, 0) => capture = false,
-                    (BumpRule::Minor, _p_min, 0) => capture = false,
-                    (BumpRule::Patch, _p_min, _p_pat) => capture = false,
+                    (BumpRule::Major, 0, 0) => {
+                        tracing::debug!("Stopped at major: {}", commit_info.id);
+                        capture = false
+                    }
+                    (BumpRule::Minor, _p_min, 0) => {
+                        tracing::debug!("Stopped at minor: {}", commit_info.id);
+                        capture = false
+                    }
+                    (BumpRule::Patch, _p_min, _p_pat) => {
+                        tracing::debug!("Stopped at patch: {}", commit_info.id);
+                        capture = false
+                    }
                     _ => {}
                 }
             }
             if !capture {
+                tracing::debug!("Stopped at commit: {}", commit_info.message());
                 break;
             }
         } else {
@@ -149,11 +160,12 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
             }
         }
         if capture {
+            tracing::debug!("Including commit: {} {}", commit_info.id, commit_info.message());
             captured_commits.push(commit_info);
         }
     }
     let changelog = ChangeLog::new(current_version, captured_commits);
-    tracing::debug!("Finished get_changelog");
+    tracing::debug!("Finished get_changelog. Current version: {} Max bump: {:?}", current_version, max_bump);
     Ok(changelog)
 }
 
@@ -171,7 +183,7 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
 fn load_file_data(repo: &git2::Repository, commit: &git2::Commit, path: impl AsRef<Path>) -> Result<String, RepositoryError> {
     let path = path.as_ref();
     let oid = commit.id();
-    tracing::debug!("Loading file data for path: {} using commit id: {}", path.display(), oid);
+    tracing::trace!("Loading file data for path: {} using commit id: {}", path.display(), oid);
     let tree = commit
         .tree()
         .map_err(|_| RepositoryError::CommitTreeError(commit.id().to_string()))?;
@@ -182,7 +194,7 @@ fn load_file_data(repo: &git2::Repository, commit: &git2::Commit, path: impl AsR
         .find_blob(entry.id())
         .map_err(|why| RepositoryError::BlobNotFound(entry.id().to_string(), why.to_string()))?;
     let content = std::str::from_utf8(blob.content()).map_err(|why| RepositoryError::BlobToTextError(entry.id().to_string(), why.to_string()))?;
-    tracing::debug!("Successfully loaded file data for path: {}", path.display());
+    tracing::trace!("Successfully loaded file data for path: {}", path.display());
     Ok(content.to_string())
 }
 
