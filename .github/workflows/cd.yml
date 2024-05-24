@@ -142,11 +142,11 @@ jobs:
       - name: Get current version with semrel
         id: version
         run: |
-           version=$(./x86_64-unknown-linux-musl/semrel --current)
+           version=$(./x86_64-unknown-linux-musl/semrel show current)
            echo "::set-output name=version::$version"
       - name: Generate Release notes with semrel
         run: |
-           ./x86_64-unknown-linux-musl/semrel --notes > release-notes-${{ steps.version.outputs.version }}.md
+           ./x86_64-unknown-linux-musl/semrel show notes > release-notes-${{ steps.version.outputs.version }}.md
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
