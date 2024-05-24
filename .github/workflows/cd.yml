@@ -113,20 +113,16 @@ jobs:
           name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/semrel
 
-  bump-version:
-    permissions:
-      contents: write
-    name: Bump Version
-    uses: ./.github/workflows/bump.yml
-    secrets:
-      token: ${{ secrets.RELEASE_TOKEN }}
-
   release:
     needs: [cross-build, native-build, bump-version]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          # we need to fetch the whole history or semrel won't work
+          ref: main
+          fetch-depth: 0
       - name: Download Artifacts
         uses: actions/download-artifact@v2
       - name: Install tar
@@ -137,20 +133,41 @@ jobs:
           chmod +x x86_64-apple-darwin/semrel
           chmod +x aarch64-unknown-linux-musl/semrel
           chmod +x x86_64-unknown-linux-musl/semrel
+      - name: Get new version with semrel
+        id: version
+        run: |
+           version=$(./x86_64-unknown-linux-musl/semrel show next)
+           echo "::set-output name=version::$version"
+      - name: Update artifact names
+        run: |
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ steps.version.outputs.version }}-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl
+          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl
       - name: Package Artifacts
         run: |
           tar czvf arm64-apple-darwin.tgz -C aarch64-apple-darwin .
           tar czvf x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
           tar czvf aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
           tar czvf x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
-      - name: Get new version with semrel
-        id: version
-        run: |
-           version=$(./x86_64-unknown-linux-musl/semrel show next)
-           echo "::set-output name=version::$version"
       - name: Generate Release notes with semrel
         run: |
            ./x86_64-unknown-linux-musl/semrel show notes > release-notes-${{ steps.version.outputs.version }}.md
+      - name: Commit changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git log --oneline
+          ./x86_64-unknown-linux-musl/semrel  update
+          echo "current version: `./x86_64-unknown-linux-musl/semrel  show current`"
+          echo "next version: `./x86_64-unknown-linux-musl/semrel show next`"
+          echo "log: `./x86_64-unknown-linux-musl/semrel show log`"
+          git add .
+          git commit -m "release: `./x86_64-unknown-linux-musl/semrel show next`\n\n`./x86_64-unknown-linux-musl/semrel show notes`"
+          git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
+          git push origin HEAD:main
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
