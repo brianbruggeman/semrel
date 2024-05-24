@@ -55,4 +55,4 @@ jobs:
           git commit Cargo.* -m 'release: ${VERSION}'
 
       - name: Push changes
-        run: git push
+        run: git push origin main
