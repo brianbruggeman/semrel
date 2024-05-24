@@ -133,6 +133,14 @@ jobs:
           tar czvf x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
           tar czvf aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
           tar czvf x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+      - name: Get current version with semrel
+        id: version
+        run: |
+           version=$(./x86_64-unknown-linux-musl/semrel --current)
+           echo "::set-output name=version::$version"
+      - name: Generate Release notes with semrel
+        run: |
+           ./x86_64-unknown-linux-musl/semrel --notes > release-notes-${{ steps.version.outputs.version }}.md
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -152,14 +160,6 @@ jobs:
           prerelease: false
           tag_name: ${{ steps.version.outputs.version }}
           token: ${{ secrets.RELEASE_TOKEN }}
-      - name: Get current version with semrel
-        id: version
-        run: |
-           version=$(./x86_64-unknown-linux-musl/semrel --current)
-           echo "::set-output name=version::$version"
-      - name: Generate Release notes with semrel
-        run: |
-           ./x86_64-unknown-linux-musl/semrel --notes > release-notes-${{ steps.version.outputs.version }}.md
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
