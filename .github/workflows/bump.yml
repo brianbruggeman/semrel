@@ -55,4 +55,5 @@ jobs:
           git config user.email github-actions@github.com
           git add .
           git commit -m "release: ${{ steps.set-new-version.outputs.version }} "
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
