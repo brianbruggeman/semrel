@@ -10,22 +10,14 @@ on:
       - completed
 
 jobs:
-  build:
+  cross-build:
     strategy:
       matrix:
         include:
           - target: aarch64-apple-darwin
             os: ubuntu-latest
-            cross: true
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            cross: false
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            cross: true
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            cross: false
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,17 +30,37 @@ jobs:
           override: true
       - name: Setup Cross
         uses: actions-rs/cargo@v1
-        if: matrix.cross
         with:
           command: install
           args: cross
       - name: Build
+        uses: actions-rs/cross@v0.2.1
+        with:
+          target: ${{ matrix.target }}
+          command: build
+          args: --release
+
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          toolchain: stable
+          override: true
+      - name: Build
         run: |
-          if ${{ matrix.cross }}; then
-            cross build --release --target ${{ matrix.target }}
-          else
-            cargo build --release --target ${{ matrix.target }}
-          fi
+          cargo build --release
       - name: Archive
         uses: actions/upload-artifact@v2
         with:
@@ -56,7 +68,7 @@ jobs:
           path: target/${{ matrix.target }}/release/*
 
   release:
-    needs: build
+    needs: [cross-build, build]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
