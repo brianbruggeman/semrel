@@ -116,7 +116,7 @@ jobs:
   bump-version:
     name: Bump Version
     uses: ./.github/workflows/bump.yml
-    with:
+    secrets:
       token: ${{ secrets.RELEASE_TOKEN }}
 
   release:
