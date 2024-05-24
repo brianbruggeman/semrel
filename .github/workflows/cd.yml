@@ -28,11 +28,31 @@ jobs:
           target: ${{ matrix.target }}
           toolchain: stable
           override: true
+      - name: Cache Cross
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/bin/cross
+          key: ${{ runner.os }}-cross
       - name: Setup Cross
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: cross
+      - name: Cache Cargo registry
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo build
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
       - name: Cross Build
         run: |
           cargo build --target ${{ matrix.target }} --release
@@ -55,6 +75,21 @@ jobs:
           target: ${{ matrix.target }}
           toolchain: stable
           override: true
+      - name: Cache Cargo registry
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo build
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
       - name: Build
         run: |
           cargo build --release
