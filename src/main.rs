@@ -27,6 +27,8 @@ pub struct Opts {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum Command {
+    /// Update the manifest
+    Update,
     /// Show information
     Show {
         #[clap(subcommand)]
@@ -143,6 +145,9 @@ fn main() -> anyhow::Result<()> {
     };
 
     match opts.cmd {
+        Command::Update => {
+            handle_update(&cli_data)
+        }
         Command::Show{cmd } => {
             handle_show_command(cmd, &cli_data)
         }
@@ -150,6 +155,16 @@ fn main() -> anyhow::Result<()> {
             handle_config_command(cmd, &cli_data)
         }
     }
+}
+
+fn handle_update(cli_data: &CliData) -> anyhow::Result<()> {
+    let manifest_data = std::fs::read(&cli_data.manifest_path)?;
+    let data = String::from_utf8(manifest_data)?;
+    let mut supported_manifest = SupportedManifest::parse(&cli_data.manifest_path, &data)?;
+    supported_manifest.set_version(cli_data.new_version)?;
+    supported_manifest.write(&cli_data.manifest_path)?;
+    println!("Wrote to: {}", cli_data.manifest_path.display());
+    Ok(())
 }
 
 fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<()> {
