@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/*
+          path: target/${{ matrix.target }}/release/semrel
 
   native-build:
     strategy:
@@ -115,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/*
+          path: target/${{ matrix.target }}/release/semrel
 
   release:
     needs: [cross-build, native-build]
