@@ -114,6 +114,8 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   bump-version:
+    permissions:
+      contents: write
     name: Bump Version
     uses: ./.github/workflows/bump.yml
     secrets:
