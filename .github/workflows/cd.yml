@@ -162,12 +162,12 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git log --oneline
-          ./x86_64-unknown-linux-musl/semrel  update
-          echo "current version: `./x86_64-unknown-linux-musl/semrel  show current`"
-          echo "next version: `./x86_64-unknown-linux-musl/semrel show next`"
-          echo "log: `./x86_64-unknown-linux-musl/semrel show log`"
+          semrel update
+          echo "current version: `semrel show current`"
+          echo "next version: `semrel show next`"
+          echo "log: `semrel show log`"
           git add .
-          git commit -m "release: `./x86_64-unknown-linux-musl/semrel show next`\n\n`./x86_64-unknown-linux-musl/semrel show notes`"
+          git commit -m "release: `semrel show next`\n\n`semrel show notes`"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
       - name: Create Release
