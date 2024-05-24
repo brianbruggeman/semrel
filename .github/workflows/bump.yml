@@ -55,8 +55,5 @@ jobs:
 
       - name: Push changes
         uses: ad-m/github-push-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           github_token: ${{ secrets.RELEASE_TOKEN }}
-          branch: main
