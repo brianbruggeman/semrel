@@ -5,9 +5,6 @@ use semrel::*;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The commit message to parse
-    #[clap(default_value = "")]
-    commit_message: String,
     /// Path to the project root
     #[clap(short, long, default_value = ".")]
     path: String,
@@ -44,19 +41,13 @@ fn main() -> anyhow::Result<()> {
 
     let path = &opts.path;
     let repo = get_repo(path).map_err(|_| RepositoryError::InvalidRepositoryPath(path.into()))?;
-    let rules = parse_rules(&opts.rule)?
-        .chain(build_default_rules())
-        .collect::<Vec<_>>();
+    let rules = parse_rules(&opts.rule)?.chain(build_default_rules()).collect::<Vec<_>>();
     let changelog = get_changelog(&repo, &rules)?;
     let current_version = changelog.current_version;
     let bump = opts.bump.unwrap_or_default();
     let new_version = match bump {
-        BumpRule::Notset => {
-            changelog.next_version(&rules)
-        }
-        _ => {
-            changelog.current_version.bump(bump)
-        }
+        BumpRule::Notset => changelog.next_version(&rules),
+        _ => changelog.current_version.bump(bump),
     };
 
     if opts.rules {

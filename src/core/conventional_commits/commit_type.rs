@@ -56,7 +56,6 @@ pub enum CommitType {
 }
 
 impl CommitType {
-
     pub fn as_release_note(&self) -> &str {
         match self {
             CommitType::Feat => "Features",

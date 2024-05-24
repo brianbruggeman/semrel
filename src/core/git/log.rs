@@ -145,7 +145,7 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
                 if captured_commits.len() == 1 {
                     captured_commits.clear();
                 }
-                break
+                break;
             }
         }
         if capture {

@@ -70,16 +70,8 @@ impl ValueEnum for BumpRule {
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
         Some(match self {
-            BumpRule::Major => clap::builder::PossibleValue::new("major")
-                .alias("+++")
-                .alias("3")
-                .alias("M")
-                ,
-            BumpRule::Minor => clap::builder::PossibleValue::new("minor")
-                .alias("++")
-                .alias("2")
-                .alias("m")
-                ,
+            BumpRule::Major => clap::builder::PossibleValue::new("major").alias("+++").alias("3").alias("M"),
+            BumpRule::Minor => clap::builder::PossibleValue::new("minor").alias("++").alias("2").alias("m"),
             BumpRule::Patch => clap::builder::PossibleValue::new("patch")
                 .alias("+")
                 .alias("p")
@@ -90,8 +82,7 @@ impl ValueEnum for BumpRule {
                 .alias("e")
                 .alias("enable")
                 .alias("on")
-                .alias("1")
-                ,
+                .alias("1"),
             BumpRule::NoBump => clap::builder::PossibleValue::new("none")
                 .alias("")
                 .alias("-")
@@ -102,8 +93,7 @@ impl ValueEnum for BumpRule {
                 .alias("d")
                 .alias("disable")
                 .alias("off")
-                .alias("0")
-                ,
+                .alias("0"),
             _ => clap::builder::PossibleValue::new("notset"),
         })
     }
