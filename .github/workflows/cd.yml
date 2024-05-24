@@ -157,6 +157,8 @@ jobs:
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           name: semrel-${{ steps.version.outputs.version }}
           body_path: release-notes-${{ steps.version.outputs.version }}.md
