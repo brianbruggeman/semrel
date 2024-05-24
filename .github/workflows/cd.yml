@@ -15,12 +15,16 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
+            os: ubuntu-latest
             cross: true
           - target: x86_64-apple-darwin
+            os: macos-latest
             cross: false
           - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
             cross: true
           - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
             cross: false
 
     runs-on: ${{ matrix.os }}
@@ -86,3 +90,4 @@ jobs:
           asset_path: ./*.tgz
           asset_name: release.tgz
           asset_content_type: application/gzip
+
