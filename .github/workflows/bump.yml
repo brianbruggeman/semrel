@@ -41,12 +41,12 @@ jobs:
         if: steps.semrel-check.outputs.cached != 'true'
         run: cargo build --release
 
-      - name: Update version
-        run: ./target/release/semrel update
-
       - name: Get new version
         id: set-new-version
-        run: echo "::set-output name=version::$(./target/release/semrel show current)"
+        run: echo "::set-output name=version::$(./target/release/semrel show next)"
+
+      - name: Update version
+        run: ./target/release/semrel update
 
       - name: Commit changes
         env:
