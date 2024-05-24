@@ -6,6 +6,8 @@ on:
 jobs:
   bump-version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -46,14 +48,8 @@ jobs:
         run: echo "::set-output name=version::$(./target/release/semrel show current)"
 
       - name: Commit changes
-        env:
-          VERSION: ${{ steps.set-new-version.outputs.version }}
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git commit Cargo.* -m 'release: ${VERSION}'
-
-      - name: Push changes
-        uses: ad-m/github-push-action@master
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          github_token: ${{ secrets.RELEASE_TOKEN }}
+          commit_message: "release: ${{ steps.set-new-version.outputs.version }}"
+          commit_user_name: "GitHub Action"
+          commit_user_email: "action@github.com"
