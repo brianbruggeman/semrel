@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::{BumpRule, CommitType};
 
-
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BumpRuleConfig {
     #[serde(flatten)]
@@ -27,12 +26,12 @@ impl BumpRuleConfig {
         self.rules.remove(&commit_type);
     }
 
-    pub fn extend(&mut self, rules: &[(CommitType, BumpRule)])  {
-        self.rules.extend(rules.into_iter().cloned());
+    pub fn extend(&mut self, rules: &[(CommitType, BumpRule)]) {
+        self.rules.extend(rules.iter().cloned());
     }
 
-    pub fn iter<'a>(&'a self) -> impl IntoIterator<Item = (&'a CommitType, &'a BumpRule)> {
-        self.rules.iter().map(|(c, b)| (c, b))
+    pub fn iter(&self) -> impl IntoIterator<Item = (&CommitType, &BumpRule)> {
+        self.rules.iter()
     }
 }
 
@@ -41,7 +40,7 @@ impl IntoIterator for BumpRuleConfig {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.rules.into_iter().map(|(a, b)| (a, b)).collect::<Vec<_>>().into_iter()
+        self.rules.into_iter().collect::<Vec<_>>().into_iter()
     }
 }
 

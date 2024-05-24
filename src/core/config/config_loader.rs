@@ -1,14 +1,17 @@
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
 use xdg::BaseDirectories;
 
 use crate::{find_manifest, top_of_repo, ConfigError, SemRelConfig};
 pub const DEFAULT_CONFIG_FILENAME: &str = ".semrel.toml";
 
-
 pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
     let paths = build_config_paths(path).ok().unwrap_or_default();
-    let result = paths.iter().cloned().inspect(|p| tracing::trace!("Searching for config file: {}", p.display())).find(|p| p.exists());
+    let result = paths
+        .iter()
+        .cloned()
+        .inspect(|p| tracing::trace!("Searching for config file: {}", p.display()))
+        .find(|p| p.exists());
     match result {
         Some(path) => {
             tracing::debug!("Found configuration: {}", path.display());
@@ -23,7 +26,7 @@ pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
 
 pub fn find_canonical_config_path() -> Option<PathBuf> {
     let paths = build_canonical_config_paths().ok().unwrap_or_default();
-    paths.iter().cloned().find(|p| p.exists())
+    paths.iter().find(|p| p.exists()).cloned()
 }
 
 pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> {
@@ -41,13 +44,13 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
         };
         tracing::debug!("Built config data for configuration path: {}", path.as_ref().display());
         tracing::trace!("Config = {:?}", config);
-        return Ok(config)
+        Ok(config)
     } else {
         let path = match find_local_config_path(path).or_else(find_canonical_config_path) {
             Some(p) => p,
             None => {
                 tracing::debug!("No configuration file found, using default configuration");
-                return Ok(SemRelConfig::default())
+                return Ok(SemRelConfig::default());
             }
         };
         tracing::trace!("Loading configuration: {}", path.display());
@@ -71,7 +74,7 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
             }
             Err(why) => {
                 tracing::error!("Could not parse configuration file: {}.  {why}", path.display());
-                return Err(ConfigError::InvalidConfig(why.to_string()))
+                return Err(ConfigError::InvalidConfig(why.to_string()));
             }
         };
         Ok(config)

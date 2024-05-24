@@ -8,22 +8,21 @@ use semrel::*;
 #[derive(Debug, clap::Parser)]
 pub struct Opts {
     /// Path to the project root
-    #[clap(long, default_value = ".", global = true, env="PROJECT_PATH")]
+    #[clap(long, default_value = ".", global = true, env = "PROJECT_PATH")]
     path: String,
     /// Custom rules for commit types (can be comma separated)
     #[clap(long, num_args(0..), global = true, env="SEMREL_RULES")]
     rule: Vec<String>,
     /// Short circuit for bumping the version
-    #[clap(short, long, global = true, env="SEMREL_BUMP")]
+    #[clap(short, long, global = true, env = "SEMREL_BUMP")]
     bump: Option<BumpRule>,
     /// Specify the configuration path
-    #[clap(long, global = true, env="SEMREL_CONFIG_PATH")]
+    #[clap(long, global = true, env = "SEMREL_CONFIG_PATH")]
     config_path: Option<PathBuf>,
 
     #[clap(subcommand)]
     pub cmd: Command,
 }
-
 
 #[derive(Debug, clap::Subcommand)]
 pub enum Command {
@@ -40,7 +39,6 @@ pub enum Command {
         cmd: ConfigOpts,
     },
 }
-
 
 #[derive(Debug, clap::Subcommand)]
 pub enum ShowOpts {
@@ -87,7 +85,7 @@ fn main() -> anyhow::Result<()> {
             tracing::info!("Configuration present in opts: {}", config_path.display());
             Some(config_path)
         }
-        None => match find_local_config_path(&path) {
+        None => match find_local_config_path(path) {
             Some(config_path) => {
                 tracing::info!("Configuration path found: {}", config_path.display());
                 Some(config_path)
@@ -96,28 +94,29 @@ fn main() -> anyhow::Result<()> {
                 tracing::info!("No configuration file found.");
                 None
             }
-        }
+        },
     };
     let config_rules = match &config_path {
-        Some(path) => {
-            match load_config(&path) {
-                Ok(config) => {
-                    let rules = config.rules().into_iter().collect::<Vec<_>>();
-                    tracing::info!("Loaded config: {} with {} rules", path.display(), rules.len());
-                    rules
-                }
-                Err(why) => {
-                    tracing::error!("Error loading config: {why}");
-                    SemRelConfig::default().rules().into_iter().collect::<Vec<_>>()
-                }
+        Some(path) => match load_config(path) {
+            Ok(config) => {
+                let rules = config.rules().into_iter().collect::<Vec<_>>();
+                tracing::info!("Loaded config: {} with {} rules", path.display(), rules.len());
+                rules
             }
-        }
+            Err(why) => {
+                tracing::error!("Error loading config: {why}");
+                SemRelConfig::default().rules().into_iter().collect::<Vec<_>>()
+            }
+        },
         None => {
             tracing::info!("Using default rules for configuration.  Could not load: {}", path);
             SemRelConfig::default().rules().into_iter().collect::<Vec<_>>()
         }
     };
-    let rules = parse_rules(&opts.rule)?.chain(config_rules).chain(build_default_rules()).collect::<Vec<_>>();
+    let rules = parse_rules(&opts.rule)?
+        .chain(config_rules)
+        .chain(build_default_rules())
+        .collect::<Vec<_>>();
     tracing::info!("Rules: {} active rules.", rules.len());
     for (commit_type, bump_rule) in rules.iter() {
         tracing::trace!("Active rule: {commit_type:?} -> {bump_rule:?}");
@@ -145,28 +144,21 @@ fn main() -> anyhow::Result<()> {
     };
 
     match opts.cmd {
-        Command::Update => {
-            handle_update(&cli_data)
-        }
-        Command::Show{cmd } => {
-            handle_show_command(cmd, &cli_data)
-        }
-        Command::Config{ cmd } => {
-            handle_config_command(cmd, &cli_data)
-        }
+        Command::Update => handle_update(&cli_data),
+        Command::Show { cmd } => handle_show_command(cmd, &cli_data),
+        Command::Config { cmd } => handle_config_command(cmd, &cli_data),
     }
 }
 
 fn handle_update(cli_data: &CliData) -> anyhow::Result<()> {
     let manifest_data = std::fs::read(&cli_data.manifest_path)?;
     let data = String::from_utf8(manifest_data)?;
-    let mut supported_manifest = SupportedManifest::parse(&cli_data.manifest_path, &data)?;
+    let mut supported_manifest = SupportedManifest::parse(&cli_data.manifest_path, data)?;
     supported_manifest.set_version(cli_data.new_version)?;
     supported_manifest.write(&cli_data.manifest_path)?;
     println!("Wrote to: {}", cli_data.manifest_path.display());
     Ok(())
 }
-
 fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<()> {
     match cmd {
         ConfigOpts::Edit => {
@@ -186,11 +178,13 @@ fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<
                     std::fs::write(&config_path, toml).expect("Unable to write file");
                 }
                 false => match load_config(&config_path) {
-                    Ok(config) => if !config.has_rules() {
-                        let mut default_config = SemRelConfig::default();
-                        default_config.extend_rules(&cli_data.rules);
-                        let toml = toml::to_string(&default_config).unwrap();
-                        std::fs::write(&config_path, toml).expect("Unable to write file");
+                    Ok(config) => {
+                        if !config.has_rules() {
+                            let mut default_config = SemRelConfig::default();
+                            default_config.extend_rules(&cli_data.rules);
+                            let toml = toml::to_string(&default_config).unwrap();
+                            std::fs::write(&config_path, toml).expect("Unable to write file");
+                        }
                     }
                     Err(_) => {
                         let mut default_config = SemRelConfig::default();
@@ -198,7 +192,7 @@ fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<
                         let toml = toml::to_string(&default_config).unwrap();
                         std::fs::write(&config_path, toml).expect("Unable to write file");
                     }
-                }
+                },
             }
             // Interactively run the default editor if it is set
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
@@ -214,7 +208,7 @@ fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<
 fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> {
     match cmd {
         ShowOpts::Config => {
-            if  cli_data.config_path.is_none() {
+            if cli_data.config_path.is_none() {
                 eprintln!("No configuration file found.");
                 std::process::exit(1);
             } else {

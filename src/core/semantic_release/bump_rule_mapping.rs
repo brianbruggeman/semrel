@@ -22,10 +22,7 @@ pub fn build_default_rules() -> impl Iterator<Item = (CommitType, BumpRule)> {
 pub fn match_rule(rules: impl IntoIterator<Item = (CommitType, BumpRule)>, commit_type: impl Into<CommitType>) -> BumpRule {
     let commit_type = commit_type.into();
     tracing::trace!("Searching for bump rule for: {commit_type:?}");
-    let rule = rules
-        .into_iter()
-        .find(|(t, _)| *t == commit_type)
-        .map(|(_, r)| r);
+    let rule = rules.into_iter().find(|(t, _)| *t == commit_type).map(|(_, r)| r);
     match rule {
         Some(rule) => {
             tracing::trace!("Found rule: {rule:?}");

@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::de::{self, Deserializer, Visitor};
 
-use crate::{SimpleVersion, BumpRuleParse};
+use crate::{BumpRuleParse, SimpleVersion};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BumpRule {
@@ -48,7 +48,7 @@ impl FromStr for BumpRule {
             "minor" | "m" | "2" | "++" => Ok(BumpRule::Minor),
             "bump" | "patch" | "p" | "y" | "+" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => Ok(BumpRule::Patch),
             "nobump" | "none" | "n" | "no" | "-" | "false" | "f" | "d" | "disable" | "off" | "0" => Ok(BumpRule::NoBump),
-            _ => Err(BumpRuleParse::ParseError(s.to_owned(), "Did not match".to_string()))
+            _ => Err(BumpRuleParse::ParseError(s.to_owned(), "Did not match".to_string())),
         }
     }
 }

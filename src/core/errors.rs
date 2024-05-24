@@ -91,5 +91,5 @@ pub enum ConventionalCommitError {
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum BumpRuleParse {
     #[error("Error parsing bump rule: {0}.  {1}")]
-    ParseError(String, String)
+    ParseError(String, String),
 }

@@ -103,7 +103,7 @@ impl serde::Serialize for CommitType {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.as_str())
+        serializer.serialize_str(self.as_str())
     }
 }
 

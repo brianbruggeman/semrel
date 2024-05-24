@@ -16,7 +16,7 @@ impl SemRel {
         !self.rules.is_empty()
     }
 
-    pub fn extend_rules(&mut self, rules: &[(CommitType, BumpRule)])  {
+    pub fn extend_rules(&mut self, rules: &[(CommitType, BumpRule)]) {
         self.rules.extend(rules);
     }
 }
@@ -26,11 +26,11 @@ impl SemRelConfig {
         self.semrel.has_rules()
     }
 
-    pub fn rules(&self) -> impl IntoIterator<Item=(CommitType, BumpRule)> {
+    pub fn rules(&self) -> impl IntoIterator<Item = (CommitType, BumpRule)> {
         self.semrel.rules.clone().into_iter()
     }
 
-    pub fn extend_rules(&mut self, rules: &[(CommitType, BumpRule)])  {
+    pub fn extend_rules(&mut self, rules: &[(CommitType, BumpRule)]) {
         self.semrel.extend_rules(rules);
     }
 }
