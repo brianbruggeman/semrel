@@ -54,7 +54,10 @@ jobs:
           git fetch origin
           git rebase main
           ./target/release/semrel update
+          echo "current version: `./target/release/semrel show current`"
+          echo "next version: `./target/release/semrel show next`"
+          echo "log: `./target/release/semrel show log`"
           git add .
-          git commit -m "release: ${{ steps.set-new-version.outputs.version }} "
+          git commit -m "release: `./target/release/semrel show next`\n\n`./target/release/semrel notes`"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
