@@ -166,12 +166,3 @@ jobs:
           prerelease: false
           tag_name: ${{ steps.version.outputs.version }}
           token: ${{ secrets.RELEASE_TOKEN }}
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: path/to/your/asset/file
-          asset_name: asset-file-name
-          asset_content_type: application/zip
