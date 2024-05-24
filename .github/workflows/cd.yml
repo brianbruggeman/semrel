@@ -16,7 +16,7 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-latest
-          - target: aarch64-unknown-linux-gnu
+          - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
 
     runs-on: ${{ matrix.os }}
@@ -38,35 +38,38 @@ jobs:
         with:
           command: install
           args: cross
+      - name: Install MUSL tools
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
       - name: Install cross compilation for gcc
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: sudo apt-get install -y gcc-aarch64-linux-gnu
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: sudo apt-get install -y gcc-aarch64-linux-musl
       - name: Cache Cargo registry
         uses: actions/cache@v2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache Cargo index
         uses: actions/cache@v2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache Cargo build
         uses: actions/cache@v2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
       - name: Cross Build
         run: |
-          cargo build --target ${{ matrix.target }} --release
+          cross build --target ${{ matrix.target }} --release
 
-  build:
+  native-build:
     strategy:
       matrix:
         include:
           - target: x86_64-apple-darwin
             os: macos-latest
-          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
 
     runs-on: ${{ matrix.os }}
@@ -82,17 +85,20 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache Cargo index
         uses: actions/cache@v2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache Cargo build
         uses: actions/cache@v2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+      - name: Install MUSL tools
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
       - name: Build
         run: |
           cargo build --release
@@ -103,7 +109,7 @@ jobs:
           path: target/${{ matrix.target }}/release/*
 
   release:
-    needs: [cross-build, build]
+    needs: [cross-build, native-build]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -114,7 +120,7 @@ jobs:
         run: sudo apt-get install tar
       - name: Package Artifacts
         run: |
-          for target in aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
+          for target in aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-musl x86_64-unknown-linux-musl; do
             tar czvf $target.tgz $target
           done
       - name: Create Release
