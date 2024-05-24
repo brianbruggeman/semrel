@@ -75,9 +75,9 @@ mod tests {
     use super::*;
     use crate::core::{ManifestError, SimpleVersion};
     use rstest::{fixture, rstest};
-    use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
+    use std::{fs::File, str::FromStr};
     use tempfile::{tempdir, TempDir};
 
     #[fixture]
@@ -158,14 +158,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case::validate_valid_json("{\"name\":\"test\",\"version\":\"1.0.0\"}", Ok(PackageJson::new("1.0.0")))]
-    #[case::validate_invalid_json("{\"name\":\"test\",\"version\":\"invalid-version\"}", Err(ManifestError::InvalidManifest("Invalid manifest: invalid digit found in string at line 1 column 31".to_string())))]
-    fn test_parse(#[case] data: &str, #[case] expected: Result<PackageJson, ManifestError>) {
+    #[case::validate_valid_json("{\"name\":\"test\",\"version\":\"1.0.0\"}", SimpleVersion::from_str("1.0.0").map_err(|_| ManifestError::InvalidManifest("Invalid version part: invalid digit found in string at line 1 column 42".to_string())))]
+    #[case::validate_invalid_json("{\"name\":\"test\",\"version\":\"invalid-version\"}", SimpleVersion::from_str("invalid-version").map_err(|_| ManifestError::InvalidManifest("Invalid version part: Invalid version part: invalid digit found in string".to_string())))]
+    fn test_parse(#[case] data: &str, #[case] expected: Result<SimpleVersion, crate::ManifestError>) {
         let result = PackageJson::parse(data);
-        match (&result, &expected) {
-            (Ok(result), Ok(expected)) => assert_eq!(result.version(), expected.version()),
-            (Err(_result), Err(_expected)) => {}
-            _ => panic!("{:?} result did not match expected {:?}", result, expected),
+        match &result {
+            Ok(result) => assert_eq!(result.version(), expected),
+            Err(result) => assert_eq!(result, &expected.unwrap_err()),
         }
     }
 
