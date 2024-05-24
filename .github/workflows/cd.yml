@@ -29,11 +29,23 @@ jobs:
           toolchain: stable
           override: true
       - name: Cache Cross
+        id: cache-cross
         uses: actions/cache@v2
         with:
           path: ~/.cargo/bin/cross
           key: ${{ runner.os }}-cross
-      - name: Setup Cross
+      - name: Check if Cross is installed
+        if: steps.cache-cross.outputs.cache-hit == 'true'
+        id: cross-check
+        run: |
+          if command -v cross &> /dev/null
+          then
+            echo "::set-output name=installed::true"
+          else
+            echo "::set-output name=installed::false"
+          fi
+      - name: Install Cross
+        if: steps.cross-check.outputs.installed != 'true'
         uses: actions-rs/cargo@v1
         with:
           command: install
