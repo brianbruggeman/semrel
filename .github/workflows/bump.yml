@@ -1,12 +1,4 @@
 name: Bump Version
-  # workflow_run:
-  #   workflows: ["CI"]
-  #   types: ["completed"]
-  #   branches: [fix-bump-push]
-  # pull_request:
-  #   types: [closed]
-  #   branches: [main]
-
 
 on:
   push:
@@ -15,7 +7,6 @@ on:
 jobs:
   bump-version:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
