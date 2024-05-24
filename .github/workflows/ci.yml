@@ -17,7 +17,7 @@ jobs:
           toolchain: nightly
           override: true
       - name: Install cargo fmt
-        run: rustup +nightly component add fmt
+        run: rustup component add rustfmt
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
