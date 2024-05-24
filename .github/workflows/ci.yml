@@ -17,10 +17,7 @@ jobs:
           toolchain: nightly
           override: true
       - name: Install cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: rustfmt-nightly
+        run: rustup +nightly component add fmt
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
@@ -39,11 +36,8 @@ jobs:
         with:
           toolchain: nightly
           override: true
-      - name: Install cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: clippy
+      - name: Install clippy
+        run: rustup +nightly component add clippy
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
