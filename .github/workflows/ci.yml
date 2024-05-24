@@ -19,6 +19,8 @@ jobs:
         with:
           command: fmt
           args: -- --check
+        env:
+          RUSTUP_TOOLCHAIN: nightly
 
   cargo_clippy:
     name: Lint
@@ -34,6 +36,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
+        env:
+          RUSTUP_TOOLCHAIN: nightly
 
   cargo_build:
     name: Build
