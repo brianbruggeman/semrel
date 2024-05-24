@@ -3,6 +3,20 @@ use std::path::PathBuf;
 use super::VersionError;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
+pub enum ConfigError {
+    #[error("{0}")]
+    InvalidRepositoryError(#[from] RepositoryError),
+    #[error("{0}")]
+    InvalidManifestError(#[from] ManifestError),
+    #[error("Invalid config: {0}")]
+    InvalidConfig(String),
+    #[error("Invalid config path: {0}")]
+    ConfigNotFound(PathBuf),
+    #[error("Empty config: {0}")]
+    EmptyConfig(PathBuf),
+}
+
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum ManifestError {
     #[error("Invalid manifest path: {0}")]
     InvalidManifestPath(PathBuf),
@@ -72,4 +86,10 @@ pub enum ConventionalCommitError {
     InvalidRepositoryError(String),
     #[error("Invalid Parse: could not parse as {0}.")]
     InvalidParse(String),
+}
+
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+pub enum BumpRuleParse {
+    #[error("Error parsing bump rule: {0}.  {1}")]
+    ParseError(String, String)
 }

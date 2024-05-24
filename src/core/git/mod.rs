@@ -1,11 +1,11 @@
 mod commit_info;
 mod filtering;
-mod log;
+mod changelog;
 mod recent;
 mod repo;
 
 pub use commit_info::*;
 pub use filtering::*;
-pub use log::*;
+pub use changelog::*;
 pub use recent::*;
 pub use repo::*;

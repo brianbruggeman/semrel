@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::ConventionalCommitError;
 
 /// A commit message that follows the conventional commit standard
-#[derive(Debug, Default, PartialEq, Eq, Clone, Hash, PartialOrd, Ord, serde::Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum CommitType {
     /// A commit that is used to add a new feature
     /// example: `feat: add support for dark mode`
@@ -95,6 +95,15 @@ impl CommitType {
             CommitType::NonCompliant => "NonCompliant",
             CommitType::Unknown => "Unknown",
         }
+    }
+}
+
+impl serde::Serialize for CommitType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.as_str())
     }
 }
 

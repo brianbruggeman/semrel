@@ -2,7 +2,9 @@ use clap::ValueEnum;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::SimpleVersion;
+use serde::de::{self, Deserializer, Visitor};
+
+use crate::{SimpleVersion, BumpRuleParse};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BumpRule {
@@ -38,15 +40,15 @@ impl fmt::Display for BumpRule {
 }
 
 impl FromStr for BumpRule {
-    type Err = ();
+    type Err = BumpRuleParse;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "major" | "M" | "3" => Ok(BumpRule::Major),
-            "minor" | "m" | "2" => Ok(BumpRule::Minor),
-            "patch" | "p" | "y" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => Ok(BumpRule::Patch),
-            "none" | "n" | "no" | "false" | "f" | "d" | "disable" | "off" | "0" => Ok(BumpRule::NoBump),
-            _ => Err(()),
+            "major" | "M" | "3" | "+++" => Ok(BumpRule::Major),
+            "minor" | "m" | "2" | "++" => Ok(BumpRule::Minor),
+            "bump" | "patch" | "p" | "y" | "+" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => Ok(BumpRule::Patch),
+            "nobump" | "none" | "n" | "no" | "-" | "false" | "f" | "d" | "disable" | "off" | "0" => Ok(BumpRule::NoBump),
+            _ => Err(BumpRuleParse::ParseError(s.to_owned(), "Did not match".to_string()))
         }
     }
 }
@@ -54,10 +56,10 @@ impl FromStr for BumpRule {
 impl From<&str> for BumpRule {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "major" | "M" | "3" => BumpRule::Major,
-            "minor" | "m" | "2" => BumpRule::Minor,
-            "patch" | "p" | "y" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => BumpRule::Patch,
-            "none" | "n" | "no" | "false" | "f" | "d" | "disable" | "off" | "0" => BumpRule::NoBump,
+            "major" | "M" | "3" | "+++" => BumpRule::Major,
+            "minor" | "m" | "2" | "++" => BumpRule::Minor,
+            "bump" | "patch" | "p" | "y" | "+" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => BumpRule::Patch,
+            "nobump" | "none" | "n" | "no" | "-" | "false" | "f" | "d" | "disable" | "off" | "0" => BumpRule::NoBump,
             _ => BumpRule::Notset,
         }
     }
@@ -96,5 +98,41 @@ impl ValueEnum for BumpRule {
                 .alias("0"),
             _ => clap::builder::PossibleValue::new("notset"),
         })
+    }
+}
+
+impl serde::Serialize for BumpRule {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for BumpRule {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct BumpRuleVisitor;
+
+        impl<'de> Visitor<'de> for BumpRuleVisitor {
+            type Value = BumpRule;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string representing a bump rule")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let x: Result<Self::Value, E> = <Self::Value as FromStr>::from_str(value).map_err(de::Error::custom);
+                x
+            }
+        }
+
+        deserializer.deserialize_str(BumpRuleVisitor)
     }
 }

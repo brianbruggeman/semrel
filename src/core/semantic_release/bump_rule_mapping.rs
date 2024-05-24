@@ -21,12 +21,21 @@ pub fn build_default_rules() -> impl Iterator<Item = (CommitType, BumpRule)> {
 
 pub fn match_rule(rules: impl IntoIterator<Item = (CommitType, BumpRule)>, commit_type: impl Into<CommitType>) -> BumpRule {
     let commit_type = commit_type.into();
-    tracing::debug!("Finding rule for {commit_type:?}");
-    rules
+    tracing::trace!("Searching for bump rule for: {commit_type:?}");
+    let rule = rules
         .into_iter()
         .find(|(t, _)| *t == commit_type)
-        .map(|(_, r)| r)
-        .unwrap_or(BumpRule::Notset)
+        .map(|(_, r)| r);
+    match rule {
+        Some(rule) => {
+            tracing::trace!("Found rule: {rule:?}");
+            rule
+        }
+        None => {
+            tracing::trace!("No rule found for `{commit_type:?}`, using default rule: {:?}", BumpRule::default());
+            BumpRule::default()
+        }
+    }
 }
 
 pub fn bump_version(rules: impl IntoIterator<Item = (CommitType, BumpRule)>, commit_type: impl Into<CommitType>, version: impl Into<SimpleVersion>) -> SimpleVersion {

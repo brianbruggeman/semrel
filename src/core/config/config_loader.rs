@@ -2,13 +2,23 @@ use std::path::{PathBuf, Path};
 
 use xdg::BaseDirectories;
 
-use crate::{find_manifest, top_of_repo, ConfigError, BumpRuleConfig};
+use crate::{find_manifest, top_of_repo, ConfigError, SemRelConfig};
 pub const DEFAULT_CONFIG_FILENAME: &str = ".semrel.toml";
 
 
 pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
     let paths = build_config_paths(path).ok().unwrap_or_default();
-    paths.iter().cloned().find(|p| p.exists())
+    let result = paths.iter().cloned().inspect(|p| tracing::trace!("Searching for config file: {}", p.display())).find(|p| p.exists());
+    match result {
+        Some(path) => {
+            tracing::debug!("Found configuration: {}", path.display());
+            Some(path)
+        }
+        None => {
+            tracing::debug!("No configuration file found.");
+            None
+        }
+    }
 }
 
 pub fn find_canonical_config_path() -> Option<PathBuf> {
@@ -16,22 +26,54 @@ pub fn find_canonical_config_path() -> Option<PathBuf> {
     paths.iter().cloned().find(|p| p.exists())
 }
 
-pub fn load_config(path: impl AsRef<Path>) -> Result<BumpRuleConfig, ConfigError> {
+pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> {
     // Maybe path _is_ the config?
     if path.as_ref().is_file() {
+        tracing::debug!("Loading configuration path: {}", path.as_ref().display());
         let data = std::fs::read_to_string(&path).map_err(|e| ConfigError::InvalidConfig(e.to_string()))?;
-        let config: BumpRuleConfig = toml::from_str(&data).map_err(|e| ConfigError::InvalidConfig(e.to_string()))?;
+        tracing::debug!("Loaded data for configuration path: {}", path.as_ref().display());
+        let config: SemRelConfig = match toml::from_str(&data) {
+            Ok(config) => config,
+            Err(why) => {
+                tracing::error!("Could not parse {data}. {why}");
+                return Err(ConfigError::InvalidConfig(why.to_string()));
+            }
+        };
+        tracing::debug!("Built config data for configuration path: {}", path.as_ref().display());
+        tracing::trace!("Config = {:?}", config);
         return Ok(config)
     } else {
         let path = match find_local_config_path(path).or_else(find_canonical_config_path) {
             Some(p) => p,
             None => {
                 tracing::debug!("No configuration file found, using default configuration");
-                return Ok(BumpRuleConfig::default())
+                return Ok(SemRelConfig::default())
             }
         };
-        let data = std::fs::read_to_string(&path).map_err(|e| ConfigError::InvalidConfig(e.to_string()))?;
-        let config: BumpRuleConfig = toml::from_str(&data).map_err(|e| ConfigError::InvalidConfig(e.to_string()))?;
+        tracing::trace!("Loading configuration: {}", path.display());
+        let data = match std::fs::read_to_string(&path) {
+            Ok(data) => {
+                tracing::trace!("Successfully read: {}", path.display());
+                data
+            }
+            Err(why) => {
+                tracing::error!("Could not read configuration file: {}.  {why}", path.display());
+                return Err(ConfigError::InvalidConfig(why.to_string()));
+            }
+        };
+        let config = match toml::from_str::<SemRelConfig>(&data) {
+            Ok(config) => {
+                let rules = config.rules().into_iter().collect::<Vec<_>>();
+                match rules.is_empty() {
+                    true => return Err(ConfigError::EmptyConfig(path.clone())),
+                    false => config,
+                }
+            }
+            Err(why) => {
+                tracing::error!("Could not parse configuration file: {}.  {why}", path.display());
+                return Err(ConfigError::InvalidConfig(why.to_string()))
+            }
+        };
         Ok(config)
     }
 }

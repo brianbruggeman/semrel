@@ -85,7 +85,7 @@ impl ConventionalCommit {
     fn finalize_commit(commit: &mut ConventionalCommit) {
         if commit.commit_type == CommitType::Unknown && commit.scope.is_none() && !commit.subject.is_empty() {
             commit.commit_type = CommitType::NonCompliant;
-            tracing::debug!("Setting commit type to {:?} because it was not recognized", commit.commit_type);
+            tracing::debug!("Setting commit type to {:?} because it was not recognized. [message='{}']", commit.commit_type, commit.message());
         }
     }
 

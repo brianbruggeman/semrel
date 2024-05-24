@@ -14,33 +14,33 @@ pub enum SupportedManifest {
 
 impl SupportedManifest {
     pub fn filename(&self) -> Result<&'static str, ManifestError> {
-        tracing::debug!("Getting filename from manifest");
+        tracing::trace!("Getting filename from manifest");
         let filename = match self {
             SupportedManifest::Rust(manifest) => Ok(manifest.filename()),
             SupportedManifest::Javascript(manifest) => Ok(manifest.filename()),
             SupportedManifest::Python(manifest) => Ok(manifest.filename()),
             SupportedManifest::Unsupported => Err(ManifestError::InvalidManifest(self.to_string())),
         };
-        tracing::debug!("Filename: {:?}", filename);
+        tracing::trace!("Filename: {:?}", filename);
         filename
     }
 
     pub fn version(&self) -> Result<SimpleVersion, ManifestError> {
-        tracing::debug!("Getting version from manifest");
+        tracing::trace!("Getting version from manifest");
         let version = match self {
             SupportedManifest::Rust(manifest) => manifest.version(),
             SupportedManifest::Javascript(manifest) => manifest.version(),
             SupportedManifest::Python(manifest) => manifest.version(),
             SupportedManifest::Unsupported => Err(ManifestError::InvalidManifest(self.to_string())),
         };
-        tracing::debug!("Version: {:?}", version);
+        tracing::trace!("Version: {:?}", version);
         version
     }
 
     pub fn parse(path: impl AsRef<Path>, data: impl AsRef<str>) -> Result<Self, ManifestError> {
         let path = path.as_ref();
         let data = data.as_ref();
-        tracing::debug!("Parsing manifest: {:?}", path);
+        tracing::trace!("Parsing manifest: {:?}", path);
         let package_json = PackageJson::manifest_filename();
         let cargo_toml = CargoToml::manifest_filename();
         let pyproject_toml = PyProjectToml::manifest_filename();
@@ -50,12 +50,12 @@ impl SupportedManifest {
             p if p.contains(pyproject_toml) => SupportedManifest::Python(PyProjectToml::parse(data)?),
             _ => return Err(ManifestError::InvalidManifestPath(path.to_path_buf())),
         };
-        tracing::debug!("Parsed manifest version: {:?}", parsed.version()?);
+        tracing::trace!("Parsed manifest version: {:?}", parsed.version()?);
         Ok(parsed)
     }
 
     pub fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError> {
-        tracing::debug!("Setting version in manifest");
+        tracing::trace!("Setting version in manifest");
         match self {
             SupportedManifest::Rust(manifest) => manifest.set_version(version)?,
             SupportedManifest::Javascript(manifest) => manifest.set_version(version)?,
@@ -66,7 +66,7 @@ impl SupportedManifest {
     }
 
     pub fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
-        tracing::debug!("Writing manifest");
+        tracing::trace!("Writing manifest");
         let path = path.into();
         match self {
             SupportedManifest::Rust(manifest) => manifest.write(path)?,

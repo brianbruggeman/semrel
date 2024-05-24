@@ -119,13 +119,13 @@ impl ManifestObjectSafe for CargoToml {
 
 impl Manifest for CargoToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
-        tracing::debug!("Parsing Cargo.toml");
+        tracing::trace!("Parsing Cargo.toml");
         let data = data.as_ref().as_bytes();
         if data.is_empty() {
             return Err(ManifestError::InvalidManifest("Manifest is empty!".to_string()));
         }
         let manifest = cargo_toml::Manifest::from_slice(data).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        tracing::debug!("Parsed manifest.");
+        tracing::trace!("Parsed manifest.");
         Ok(Self { manifest })
     }
 }
