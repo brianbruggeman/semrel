@@ -7,6 +7,8 @@ jobs:
   cargo_fmt:
     name: Format
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v2
       - name: Install nightly
@@ -14,17 +16,22 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - name: Install cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: rustfmt-nightly
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: -- --check
-        env:
-          RUSTUP_TOOLCHAIN: nightly
 
   cargo_clippy:
     name: Lint
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v2
       - name: Install nightly
@@ -32,12 +39,15 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - name: Install cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: clippy
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-        env:
-          RUSTUP_TOOLCHAIN: nightly
 
   cargo_build:
     name: Build
