@@ -45,19 +45,15 @@ jobs:
         id: set-new-version
         run: echo "::set-output name=version::$(./target/release/semrel show next)"
 
-      - name: Update version
-        run: ./target/release/semrel update
-
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git stash
           git fetch origin
           git rebase main
-          git stash pop
+          ./target/release/semrel update
           git add .
           git commit -m "release: ${{ steps.set-new-version.outputs.version }} "
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
