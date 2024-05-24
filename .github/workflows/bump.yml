@@ -23,16 +23,16 @@ jobs:
         run: cargo build --release
 
       - name: Update version
-        run: ./target/release/semrel --update
+        run: ./target/release/semrel update
 
       - name: Get new version
-        id: get_version
-        run: echo "::set-output name=version::$(./target/release/semrel --current)"
+        id: set-new-version
+        run: echo "::set-output name=version::$(./target/release/semrel show current)"
 
       - name: Commit changes
+        env:
+          VERSION: ${{ steps.set-new-version.outputs.version }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git commit Cargo.* -m 'release: ${VERSION}'
-        env:
-          VERSION: ${{ steps.get_version.outputs.version }}
