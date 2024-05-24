@@ -1,0 +1,9 @@
+[net]
+retry = 2
+
+# fast dev compiles
+[profile.dev]
+incremental = true
+opt-level = 0
+debug = false
+codegen-units = 16
