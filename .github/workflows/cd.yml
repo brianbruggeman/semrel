@@ -136,16 +136,22 @@ jobs:
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           files: |
             arm64-apple-darwin.tgz
             x86_64-apple-darwin.tgz
             aarch64-unknown-linux-musl.tgz
             x86_64-unknown-linux-musl.tgz
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          name: semrel-${{ steps.version.outputs.version }}
+          body_path: release-notes-${{ steps.version.outputs.version }}.md
+          generate_release_notes: false
+          make_latest: true
           draft: false
           prerelease: false
+          tag_name: ${{ steps.version.outputs.version }}
+          token: ${{ secrets.RELEASE_TOKEN }}
       - name: Get current version with semrel
         id: version
         run: |
@@ -155,16 +161,11 @@ jobs:
         run: |
            ./x86_64-unknown-linux-musl/semrel --notes > release-notes-${{ steps.version.outputs.version }}.md
       - name: Upload Release Asset
-        id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
-          name: semrel-${{ steps.version.outputs.version }}
-          body_path: release-notes-${{ steps.version.outputs.version }}.md
-          generate_release_notes: false
-          make_latest: true
-          draft: false
-          prerelease: false
-          tag_name: ${{ steps.version.outputs.version }}
-          token: ${{ secrets.RELEASE_TOKEN }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: path/to/your/asset/file
+          asset_name: asset-file-name
+          asset_content_type: application/zip
