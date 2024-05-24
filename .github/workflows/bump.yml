@@ -55,6 +55,7 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
+          git log --oneline
           ./target/release/semrel update
           echo "current version: `./target/release/semrel show current`"
           echo "next version: `./target/release/semrel show next`"
