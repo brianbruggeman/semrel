@@ -53,7 +53,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: ${{ runner.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
