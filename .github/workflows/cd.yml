@@ -122,7 +122,7 @@ jobs:
       token: ${{ secrets.RELEASE_TOKEN }}
 
   release:
-    needs: [cross-build, native-build]
+    needs: [cross-build, native-build, bump-version]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -55,8 +55,8 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git stash
-          git fetch origin/main
-          git rebase origin/main
+          git fetch origin
+          git rebase main
           git stash pop
           git add .
           git commit -m "release: ${{ steps.set-new-version.outputs.version }} "
