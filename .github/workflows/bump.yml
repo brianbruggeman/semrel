@@ -4,13 +4,13 @@ on:
   push:
     branches:
       - fix-bump-push
-  workflow_run:
-    workflows: ["CI"]
-    types: ["completed"]
-    branches: [fix-bump-push]
-  pull_request:
-    types: [closed]
-    branches: [main]
+  # workflow_run:
+  #   workflows: ["CI"]
+  #   types: ["completed"]
+  #   branches: [fix-bump-push]
+  # pull_request:
+  #   types: [closed]
+  #   branches: [main]
 
 jobs:
   bump-version:
