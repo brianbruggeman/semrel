@@ -51,5 +51,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "release: ${{ steps.set-new-version.outputs.version }}"
-          commit_user_name: "GitHub Action"
-          commit_user_email: "action@github.com"
+  
