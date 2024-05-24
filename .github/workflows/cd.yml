@@ -23,7 +23,7 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             cross: false
 
-    runs-on: ${{ runner.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
