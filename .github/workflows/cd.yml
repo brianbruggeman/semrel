@@ -10,10 +10,10 @@ jobs:
     strategy:
       matrix:
         include:
-          # - target: aarch64-apple-darwin
-          #   os: macos-latest
-          # - target: aarch64-unknown-linux-musl
-          #   os: ubuntu-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
 
@@ -72,46 +72,46 @@ jobs:
           name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/semrel
 
-  # native-build:
-  #   strategy:
-  #     matrix:
-  #       include:
-  #         - target: x86_64-apple-darwin
-  #           os: macos-latest
+  native-build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
 
 
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         target: ${{ matrix.target }}
-  #         toolchain: stable
-  #         override: true
-  #     - name: Cache Cargo registry
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: ~/.cargo/registry
-  #         key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-  #     - name: Cache Cargo index
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: ~/.cargo/git
-  #         key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-  #     - name: Cache Cargo build
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: target
-  #         key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
-  #     - name: Build
-  #       run: |
-  #         cargo build --release --target=${{ matrix.target }}
-  #     - name: Archive
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: ${{ matrix.target }}
-  #         path: target/${{ matrix.target }}/release/semrel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          toolchain: stable
+          override: true
+      - name: Cache Cargo registry
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo build
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+      - name: Build
+        run: |
+          cargo build --release --target=${{ matrix.target }}
+      - name: Archive
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/semrel
 
   release:
     needs: [cross-build]
