@@ -29,8 +29,7 @@ jobs:
             exit 1
           else
             tag_name=$(echo "$release_data" | jq -r .tag_name)
-            echo "Tag name: $tag_name"
-            echo "tag_name=$tag_name" >> $GITHUB_ENV
+            echo "::set-output name=tag_name::${tag_name}"
           fi
       - name: Download semrel
         id: download-semrel
