@@ -165,10 +165,11 @@ jobs:
           git config user.email github-actions@github.com
           git log --oneline
           semrel update
+          cargo update
           echo "current version: `semrel show current`"
           echo "next version: `semrel show next`"
           echo "log: `semrel show log`"
-          git add .
+          git add Cargo.toml Cargo.lock
           git commit -m "release: `semrel show next`\n\n`semrel show notes`"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
