@@ -139,6 +139,30 @@ impl From<&str> for CommitType {
     }
 }
 
+impl PartialEq<&str> for CommitType {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+impl PartialEq<&CommitType> for CommitType {
+    fn eq(&self, other: &&CommitType) -> bool {
+        self == *other
+    }
+}
+
+impl PartialEq<CommitType> for &str {
+    fn eq(&self, other: &CommitType) -> bool {
+        *self == other.as_str()
+    }
+}
+
+impl PartialEq<CommitType> for &CommitType {
+    fn eq(&self, other: &CommitType) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
 impl FromStr for CommitType {
     type Err = ConventionalCommitError;
 

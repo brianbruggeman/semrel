@@ -256,6 +256,9 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
         }
         ShowOpts::Log => {
             for item in &cli_data.changelog.changes {
+                if item.commit_type().as_str().starts_with("semrel") {
+                    continue;
+                }
                 println!("{} {}", item.id, item.message())
             }
             Ok(())

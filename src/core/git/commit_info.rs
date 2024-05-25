@@ -29,6 +29,10 @@ impl CommitInfo {
         self.commit.message()
     }
 
+    pub fn commit_type(&self) -> &CommitType {
+        &self.commit.commit_type
+    }
+
     pub fn rule(&self, rules: &[(CommitType, BumpRule)]) -> BumpRule {
         let rules = rules.iter().map(|(ct, br)| (ct.into(), *br)).collect::<Vec<_>>();
         let rules = match rules.is_empty() {

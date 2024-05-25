@@ -69,6 +69,9 @@ impl ChangeLog {
                     notes.push_str(&format!("\n### {}\n", scope));
                 }
                 for commit in commits {
+                    if commit.commit_type().as_str().starts_with("semrel") {
+                        continue;
+                    }
                     notes.push_str(&format!("- {}\n", commit.commit.subject));
                 }
             }
@@ -250,8 +253,7 @@ pub fn revwalk_commit_log<'a>(repo: &'a git2::Repository, project_path: impl Int
         let timestamp = num_traits::cast::<i64, u64>(timestamp).unwrap();
         let info: CommitInfo = CommitInfo::new(oid.to_string(), files_changed, conventional_commit, timestamp);
         Ok::<CommitInfo, RepositoryError>(info)
-    })
-    .filter(|commit| commit.commit.commit_type != CommitType::Custom("semrel".to_string()));
+    });
     Ok(data)
 }
 
