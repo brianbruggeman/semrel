@@ -4,12 +4,6 @@ on:
   push:
 
 jobs:
-
-  # detect-new-version:
-  #   uses: ./.github/workflows/detect-new-version.yml
-  #   secrets:
-  #     token: ${{ secrets.GITHUB_TOKEN }}
-
   use-reusable-hello:
     uses: ./.github/workflows/world.yml
 

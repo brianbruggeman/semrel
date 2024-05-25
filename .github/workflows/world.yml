@@ -5,6 +5,7 @@ on:
     outputs:
       hello-output:
         description: "The Hello World output"
+        value: ${{ jobs.say-hello.outputs.hello-output }}
 
 jobs:
   say-hello:
