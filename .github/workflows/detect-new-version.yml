@@ -5,6 +5,15 @@ on:
     secrets:
       token:
         required: true
+    outputs:
+      current-version:
+        description: "The current version"
+      next-version:
+        description: "The next version"
+      release-notes:
+        description: "The release notes for the next version"
+      log:
+        description: "The commit log for the next version"
 
 jobs:
   detect-new-version:

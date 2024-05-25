@@ -9,11 +9,9 @@ on:
 jobs:
   say-hello:
     runs-on: ubuntu-latest
-
+    outputs:
+      hello-output: ${{ steps.hello-world-output.outputs.hello }}
     steps:
       - name: Print Hello World
         id: hello-world-output
         run: echo "::set-output name=hello::Hello, World!"
-
-    outputs:
-      hello-output: ${{ steps.hello-world-output.outputs.hello }}
