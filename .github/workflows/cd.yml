@@ -147,18 +147,18 @@ jobs:
           chmod +x x86_64-unknown-linux-musl/semrel
       - name: Update artifact names
         run: |
-          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-amd64-apple-darwin
-          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin
-          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl
-          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ needs.detect-new-version.outputs.next-version }}-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl
+          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl
           echo "Path: ${PATH}"
-          cp x86_64-unknown-linux-musl/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
+          cp x86_64-unknown-linux-musl/semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
       - name: Package Artifacts
         run: |
-          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
-          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
-          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
-          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+          tar czvf semrel-${{ needs.detect-new-version.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
+          tar czvf semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
+          tar czvf semrel-${{ needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
+          tar czvf semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -168,11 +168,11 @@ jobs:
           git log --oneline
           semrel update
           cargo update
-          echo "current version: ${{ job.needs.detect-new-version.outputs.current-version }}"
-          echo "next version: ${{ job.needs.detect-new-version.outputs.next-version }}"
-          echo "log: ${{ job.needs.detect-new-version.outputs.log }}"
+          echo "current version: ${{ needs.detect-new-version.outputs.current-version }}"
+          echo "next version: ${{ needs.detect-new-version.outputs.next-version }}"
+          echo "log: ${{ needs.detect-new-version.outputs.log }}"
           git add Cargo.toml Cargo.lock
-          git commit -m "semrel: ${{ job.needs.detect-new-version.outputs.next-version }}\n\n${{ job.needs.detect-new-version.outputs.current-version }}\n\n${{ job.needs.detect-new-version.outputs.log }}"
+          git commit -m "semrel: ${{ needs.detect-new-version.outputs.next-version }}\n\n${{ needs.detect-new-version.outputs.current-version }}\n\n${{ needs.detect-new-version.outputs.log }}"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
       - name: Create Release
@@ -182,15 +182,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           files: |
-            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-arm64-apple-darwin.tgz
-            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin.tgz
-            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl.tgz
-            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl.tgz
-          name: semrel-${{ job.needs.detect-new-version.outputs.next-version }}
-          body_path: release-notes-${{ job.needs.detect-new-version.outputs.next-version }}.md
+            semrel-${{ needs.detect-new-version.outputs.next-version }}-arm64-apple-darwin.tgz
+            semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin.tgz
+            semrel-${{ needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl.tgz
+            semrel-${{ needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl.tgz
+          name: semrel-${{ needs.detect-new-version.outputs.next-version }}
+          body_path: release-notes-${{ needs.detect-new-version.outputs.next-version }}.md
           generate_release_notes: false
           make_latest: true
           draft: false
           prerelease: false
-          tag_name: ${{ job.needs.detect-new-version.outputs.next-version }}
+          tag_name: ${{ needs.detect-new-version.outputs.next-version }}
           token: ${{ secrets.RELEASE_TOKEN }}
