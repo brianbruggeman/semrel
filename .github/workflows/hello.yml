@@ -13,4 +13,4 @@ jobs:
 
     steps:
       - name: Display Hello World
-        run: echo "${{ jobs.needs.use-reusable-hello.outputs.hello-output }}"
+        run: echo "${{ needs.use-reusable-hello.outputs.hello-output }}"
