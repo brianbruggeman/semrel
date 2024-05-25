@@ -58,5 +58,5 @@ There are no dependencies for this project.  You should be able to simply downlo
 However, if you want to build it yourself, you can use the following command:
 
 ```bash
-cargo install --git https://api.github.com/repos/brianbruggeman/semrel
+cargo install --git https://api.github.com/repos/Wizehire/semrel
 ```
