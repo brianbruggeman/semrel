@@ -1,4 +1,4 @@
-name: Reusable Hello World
+name: World
 
 on:
   workflow_call:
