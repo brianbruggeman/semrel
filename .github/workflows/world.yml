@@ -11,8 +11,8 @@ jobs:
   say-hello:
     runs-on: ubuntu-latest
     outputs:
-      hello-output: ${{ steps.hello-world-output.outputs.hello }}
+      hello-output: ${{ steps.hello-world-output.outputs.hello }}  # Ensure this matches the output key in the set-output command
     steps:
       - name: Print Hello World
         id: hello-world-output
-        run: echo "::set-output name=hello::Hello, World!"
+        run: echo "::set-output name=hello::Hello, World!"  # Correctly set the output at step level
