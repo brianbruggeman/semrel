@@ -34,7 +34,7 @@ jobs:
       - name: Download semrel
         id: download-semrel
         run: |
-          wget "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
+          wget  --header="Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
           mkdir -p .cargo/bin
           tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
           mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
