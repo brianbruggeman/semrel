@@ -327,6 +327,7 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
 
     // Return all of the oids, but filter on the project files
     //  This is preliminary support for multi-package/monorepos
+    #[allow(clippy::needless_borrows_for_generic_args)]
     let data = revwalk
         .flat_map(|oid| oid.map_err(|why| RepositoryError::InvalidRepository(why.to_string())))
         .flat_map::<Result<(Oid, Vec<PathBuf>), RepositoryError>, _>(|oid| {
@@ -477,7 +478,7 @@ mod tests {
                 .ok()
                 .and_then(|h| h.target())
                 .and_then(|t| self.repo.find_commit(t).ok());
-            let parents = parent_commit.as_ref().map(|p| vec![p]).unwrap_or_else(Vec::new);
+            let parents = parent_commit.as_ref().map(|p| vec![p]).unwrap_or_default();
             self.repo
                 .commit(Some("HEAD"), &sig, &sig, message, &tree, &parents)
                 .map_err(|_| RepositoryError::InvalidRepositoryPath(self.path().to_path_buf()))
@@ -538,11 +539,11 @@ mod tests {
         let test_repo = TestRepo::new();
         test_repo.commit("Initial commit").expect("Failed to commit");
         test_repo.commit("Another commit").expect("Failed to commit");
-        let mut walker = revwalk(&test_repo.repo, test_repo.path())
+        let walker = revwalk(&test_repo.repo, test_repo.path())
             .expect("Could not revwalk")
             .into_iter();
         let mut counter = 0;
-        while let Some(_oid) = walker.next() {
+        for _oid in walker {
             counter += 1;
         }
         assert_eq!(counter, 0, "Expected no commits in the revwalk, because no files");
