@@ -1,0 +1,19 @@
+name: Call Reusable Hello World
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  use-reusable-hello:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Reusable Hello World
+        id: reusable-hello
+        uses: ./.github/workflows/world.yml
+
+      - name: Use Hello World Output
+        run: echo "${{ steps.reusable-hello.outputs.hello-output }}"

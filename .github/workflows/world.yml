@@ -1,0 +1,19 @@
+name: Reusable Hello World
+
+on:
+  workflow_call:
+    outputs:
+      hello-output:
+        description: "The Hello World output"
+
+jobs:
+  say-hello:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print Hello World
+        id: hello-world-output
+        run: echo "::set-output name=hello::Hello, World!"
+
+    outputs:
+      hello-output: ${{ steps.hello-world-output.outputs.hello }}
