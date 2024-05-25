@@ -12,11 +12,7 @@ jobs:
       current-version: ${{ steps.get-current-version.outputs.current-version }}
       next-version: ${{ steps.set-new-version.outputs.next-version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: main
-          fetch-depth: 0
+
       - name: Install jq
         run: sudo apt-get install jq
       - name: Get latest semrel release
@@ -40,7 +36,7 @@ jobs:
           #   tag_name=$(echo "$release_data" | jq -r .tag_name)
           #   echo "::set-output name=tag_name::${tag_name}"
           # fi
-      - name: Download semrel
+      - name: Download and extract semrel
         id: download-semrel
         run: |
           asset_url=${{ steps.get-latest-release.outputs.asset_url }}
@@ -50,12 +46,24 @@ jobs:
             echo "Failed to download the file. Response from curl:"
             exit 1
           fi
+          echo "Checking file content:"
           tar -tf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
-          tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
-          ls -lashtr
           mkdir -p .cargo/bin
+          tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin --strip-components=1
+          chmod +x .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl
           mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
-          chmod +x .cargo/bin/semrel
+          echo "Downloaded and extracted semrel"
+          echo "show folder content:"
+          ls -lashtr .cargo/bin
+          echo "Checking file size:"
+          du -sh .cargo/bin/semrel
+          echo "Checking file type:"
+          file .cargo/bin/semrel
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          fetch-depth: 0
       - name: Get current version
         id: get-current-version
         run: echo "::set-output name=current-version::$(./semrel show current)"
