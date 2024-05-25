@@ -4,16 +4,16 @@ on:
   push:
 
 jobs:
+
   use-reusable-hello:
+    uses: ./.github/workflows/world.yml
+    name: Call Reusable Hello World
+    id: reusable-hello
+
+  use-output:
+    needs: [use-reusable-hello]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Call Reusable Hello World
-        id: reusable-hello
-        uses: ./.github/workflows/world.yml
-
-      - name: Use Hello World Output
-        run: echo "${{ steps.reusable-hello.outputs.hello-output }}"
+      - name: Display Hello World
+        run: echo "${{ job.reusable-hello.outputs.hello-output }}"
