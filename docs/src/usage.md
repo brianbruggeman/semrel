@@ -27,9 +27,9 @@ $ semrel show next
 # How did we get to this version?
 $ RUST_LOG=semrel=debug semrel show next
 2024-05-24T12:39:42.266931Z DEBUG semrel::core::git::repo: Searching for repository under: .
-2024-05-24T12:39:42.267995Z DEBUG semrel::core::git::repo: Found repository at: /Users/brianbruggeman/repos/mine/semrel
-2024-05-24T12:39:42.268012Z DEBUG semrel::core::git::log: Starting get_changelog for path: /Users/brianbruggeman/repos/mine/semrel
-2024-05-24T12:39:42.268054Z DEBUG semrel::manifests::supported_manifests: Parsing manifest: "/Users/brianbruggeman/repos/mine/semrel/Cargo.toml"
+2024-05-24T12:39:42.267995Z DEBUG semrel::core::git::repo: Found repository at: /path/to/repos/semrel
+2024-05-24T12:39:42.268012Z DEBUG semrel::core::git::log: Starting get_changelog for path: /path/to/repos/semrel
+2024-05-24T12:39:42.268054Z DEBUG semrel::manifests::supported_manifests: Parsing manifest: "/path/to/repos/semrel/Cargo.toml"
 2024-05-24T12:39:42.268062Z DEBUG semrel::manifests::cargo_toml: Parsing Cargo.toml
 2024-05-24T12:39:42.268293Z DEBUG semrel::manifests::cargo_toml: Parsed manifest.
 2024-05-24T12:39:42.268308Z DEBUG semrel::manifests::supported_manifests: Getting version from manifest

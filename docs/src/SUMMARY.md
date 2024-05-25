@@ -1,5 +1,6 @@
 # Summary
 
+- [Introduction](./introduction.md)
 - [Motivation](./motivation.md)
 - [Capabilities](./capabilities.md)
 - [Basic rules](./basic-rules.md)

@@ -7,3 +7,5 @@ title = "Semrel"
 
 [output.html]
 render-link = "render-link = \"{filename}.html\""
+
+[output.pdf]
