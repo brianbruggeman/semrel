@@ -171,7 +171,7 @@ jobs:
           echo "next version: `semrel show next`"
           echo "log: `semrel show log`"
           git add Cargo.toml Cargo.lock
-          git commit -m "release: `semrel show next`\n\n`semrel show notes`"
+          git commit -m "semrel: `semrel show next`\n\n`semrel show notes`"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
       - name: Create Release
