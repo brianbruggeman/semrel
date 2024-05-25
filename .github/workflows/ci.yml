@@ -50,6 +50,7 @@ jobs:
             echo "Failed to download the file. Response from curl:"
             exit 1
           fi
+          tar -tf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
           tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
           ls -lashtr
           mkdir -p .cargo/bin
