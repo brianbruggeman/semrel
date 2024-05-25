@@ -8,39 +8,9 @@ on:
 
 jobs:
   detect-new-version:
-    runs-on: ubuntu-latest
-    outputs:
-      current-version: ${{ steps.get-current-version.outputs.current-version }}
-      next-version: ${{ steps.set-new-version.outputs.next-version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: main
-          fetch-depth: 0
-      - name: Install jq
-        run: sudo apt-get install jq
-      - name: Get latest semrel release
-        id: get-latest-release
-        run: |
-          release_data=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest")
-          echo "Release data: $release_data"
-          tag_name=$(echo "$release_data" | jq -r .tag_name)
-          echo "::set-output name=tag_name::$tag_name"
-      - name: Download semrel
-        id: download-semrel
-        run: |
-          wget "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
-          mkdir -p .cargo/bin
-          tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
-          mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
-          chmod +x .cargo/bin/semrel
-      - name: Get current version
-        id: get-current-version
-        run: echo "::set-output name=current-version::$(./semrel show current)"
-      - name: Get new version
-        id: set-new-version
-        run: echo "::set-output name=next-version::$(./semrel show next)"
+    uses: ./.github/workflows/detect-new-version.yml
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
 
   cross-build:
     needs: [detect-new-version]
@@ -154,17 +124,11 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   release:
-    needs: [cross-build, native-build]
+    needs: [detect-new-version, cross-build, native-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          # we need to fetch the whole history or semrel won't work
-          ref: main
-          fetch-depth: 0
       - name: Download Artifacts
         uses: actions/download-artifact@v2
       - name: Install tar
@@ -175,28 +139,23 @@ jobs:
           chmod +x x86_64-apple-darwin/semrel
           chmod +x aarch64-unknown-linux-musl/semrel
           chmod +x x86_64-unknown-linux-musl/semrel
-      - name: Get new version with semrel
-        id: version
-        run: |
-           version=$(./x86_64-unknown-linux-musl/semrel show next)
-           echo "::set-output name=version::$version"
       - name: Update artifact names
         run: |
-          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ steps.version.outputs.version }}-amd64-apple-darwin
-          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin
-          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl
-          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl
+          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl
           echo "Path: ${PATH}"
-          cp x86_64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
+          cp x86_64-unknown-linux-musl/semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
       - name: Package Artifacts
         run: |
-          tar czvf semrel-${{ steps.version.outputs.version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
-          tar czvf semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
-          tar czvf semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
-          tar czvf semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
+          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
+          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
+          tar czvf semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
       - name: Generate Release notes with semrel
         run: |
-          semrel show notes > release-notes-${{ steps.version.outputs.version }}.md
+          semrel show notes > release-notes-${{ job.needs.detect-new-version.outputs.next-version }}.md
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -206,11 +165,11 @@ jobs:
           git log --oneline
           semrel update
           cargo update
-          echo "current version: `semrel show current`"
-          echo "next version: `semrel show next`"
-          echo "log: `semrel show log`"
+          echo "current version: `${{ job.needs.detect-new-version.outputs.current-version }} }}`"
+          echo "next version: `${{ job.needs.detect-new-version.outputs.next-version }}`"
+          echo "log: `${{ job.needs.detect-new-version.outputs.log }}`"
           git add Cargo.toml Cargo.lock
-          git commit -m "semrel: `semrel show next`\n\n`semrel show notes`"
+          git commit -m "semrel: ${{ job.needs.detect-new-version.outputs.next-version }}\n\n${{ job.needs.detect-new-version.outputs.current-version }}\n\n${{ job.needs.detect-new-version.outputs.log }"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
       - name: Create Release
@@ -220,15 +179,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           files: |
-            semrel-${{ steps.version.outputs.version }}-arm64-apple-darwin.tgz
-            semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tgz
-            semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl.tgz
-            semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl.tgz
-          name: semrel-${{ steps.version.outputs.version }}
-          body_path: release-notes-${{ steps.version.outputs.version }}.md
+            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-arm64-apple-darwin.tgz
+            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-apple-darwin.tgz
+            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-aarch64-unknown-linux-musl.tgz
+            semrel-${{ job.needs.detect-new-version.outputs.next-version }}-x86_64-unknown-linux-musl.tgz
+          name: semrel-${{ job.needs.detect-new-version.outputs.next-version }}
+          body_path: release-notes-${{ job.needs.detect-new-version.outputs.next-version }}.md
           generate_release_notes: false
           make_latest: true
           draft: false
           prerelease: false
-          tag_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ job.needs.detect-new-version.outputs.next-version }}
           token: ${{ secrets.RELEASE_TOKEN }}
