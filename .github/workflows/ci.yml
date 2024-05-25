@@ -35,6 +35,10 @@ jobs:
         id: download-semrel
         run: |
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
+          echo "Checking file type:"
+          file semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
+          echo "Downloaded file content (first 100 bytes):"
+          head -c 100 semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
           mkdir -p .cargo/bin
           tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
           mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
