@@ -22,10 +22,16 @@ jobs:
       - name: Get latest semrel release
         id: get-latest-release
         run: |
-          release_data=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+          release_data=$(curl --silent -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/latest")
           echo "Release data: $release_data"
-          tag_name=$(echo "$release_data" | jq -r .tag_name)
-          echo "::set-output name=tag_name::$tag_name"
+          if [[ $(echo "$release_data" | jq -r .message) == "Not Found" ]]; then
+            echo "No releases found."
+            exit 1
+          else
+            tag_name=$(echo "$release_data" | jq -r .tag_name)
+            echo "Tag name: $tag_name"
+            echo "tag_name=$tag_name" >> $GITHUB_ENV
+          fi
       - name: Download semrel
         id: download-semrel
         run: |
