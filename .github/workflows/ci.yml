@@ -24,19 +24,28 @@ jobs:
         run: |
           release_data=$(curl --silent -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/latest")
           echo "Release data: $release_data"
-          if [[ $(echo "$release_data" | jq -r .message) == "Not Found" ]]; then
-            echo "No releases found."
-            exit 1
-          else
-            tag_name=$(echo "$release_data" | jq -r .tag_name)
-            echo "::set-output name=tag_name::${tag_name}"
-          fi
+          tag_name=$(echo "$release_data" | jq -r .tag_name)
+          echo "::set-output name=tag_name::$tag_name"
+          asset_id=$(echo "$release_data" | jq -r '.assets[] | select(.name == "semrel-'${tag_name}'-x86_64-unknown-linux-musl.tgz") | .id')
+          echo "Asset ID: $asset_id"
+          asset_url="https://api.github.com/repos/${{ github.repository }}/releases/assets/${asset_id}"
+          echo "Asset URL: $asset_url"
+          echo "::set-output name=asset_url::$asset_url"
+          # release_data=$(curl --silent -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+          # echo "Release data: $release_data"
+          # if [[ $(echo "$release_data" | jq -r .message) == "Not Found" ]]; then
+          #   echo "No releases found."
+          #   exit 1
+          # else
+          #   tag_name=$(echo "$release_data" | jq -r .tag_name)
+          #   echo "::set-output name=tag_name::${tag_name}"
+          # fi
       - name: Download semrel
         id: download-semrel
         run: |
-          echo "URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
-          curl -I -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz" -v
-          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz" -v
+          asset_url=${{ steps.get-latest-release.outputs.asset_url }}
+          echo "Downloading from $asset_url"
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "$asset_url"
           if [ $? -ne 0 ]; then
             echo "Failed to download the file. Response from curl:"
             exit 1
@@ -53,6 +62,25 @@ jobs:
           tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
           mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
           chmod +x .cargo/bin/semrel
+          # echo "URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
+          # curl -I -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz" -v
+          # curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz" -v
+          # if [ $? -ne 0 ]; then
+          #   echo "Failed to download the file. Response from curl:"
+          #   exit 1
+          # fi
+          # echo "show folder content:"
+          # ls -lashtr
+          # echo "Checking file size:"
+          # du -sh semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
+          # echo "Checking file type:"
+          # file semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
+          # echo "Downloaded file content (first 100 bytes):"
+          # head -c 100 semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
+          # mkdir -p .cargo/bin
+          # tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
+          # mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
+          # chmod +x .cargo/bin/semrel
       - name: Get current version
         id: get-current-version
         run: echo "::set-output name=current-version::$(./semrel show current)"
