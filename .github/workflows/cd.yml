@@ -165,9 +165,9 @@ jobs:
           git log --oneline
           semrel update
           cargo update
-          echo "current version: `${{ job.needs.detect-new-version.outputs.current-version }} }}`"
-          echo "next version: `${{ job.needs.detect-new-version.outputs.next-version }}`"
-          echo "log: `${{ job.needs.detect-new-version.outputs.log }}`"
+          echo "current version: ${{ job.needs.detect-new-version.outputs.current-version }}"
+          echo "next version: ${{ job.needs.detect-new-version.outputs.next-version }}"
+          echo "log: ${{ job.needs.detect-new-version.outputs.log }}"
           git add Cargo.toml Cargo.lock
           git commit -m "semrel: ${{ job.needs.detect-new-version.outputs.next-version }}\n\n${{ job.needs.detect-new-version.outputs.current-version }}\n\n${{ job.needs.detect-new-version.outputs.log }"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
