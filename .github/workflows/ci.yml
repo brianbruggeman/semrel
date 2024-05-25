@@ -39,6 +39,8 @@ jobs:
             echo "Failed to download the file. Response from curl:"
             exit 1
           fi
+          echo "show folder content:"
+          ls -lashtr
           echo "Checking file size:"
           du -sh semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz
           echo "Checking file type:"
