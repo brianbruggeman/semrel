@@ -6,7 +6,42 @@ on:
   pull_request:
 
 jobs:
+  detect-new-version:
+    runs-on: ubuntu-latest
+    outputs:
+      current-version: ${{ steps.get-current-version.outputs.current-version }}
+      next-version: ${{ steps.set-new-version.outputs.next-version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Install jq
+        run: sudo apt-get install jq
+      - name: Get latest semrel release
+        id: get-latest-release
+        run: |
+          curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest" |
+          jq -r .tag_name
+      - name: Download semrel
+        id: download-semrel
+        run: |
+          wget "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
+          mkdir -p .cargo/bin
+          tar -xzf semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz -C .cargo/bin x86_64-unknown-linux-musl/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl --strip-components=1
+          mv .cargo/bin/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl .cargo/bin/semrel
+          chmod +x .cargo/bin/semrel
+      - name: Get current version
+        id: get-current-version
+        run: echo "::set-output name=current-version::$(./semrel show current)"
+      - name: Get new version
+        id: set-new-version
+        run: echo "::set-output name=next-version::$(./semrel show next)"
+
   cargo_fmt:
+    needs: [detect-new-version]
+    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
     name: Format
     runs-on: ubuntu-latest
     steps:
@@ -26,6 +61,8 @@ jobs:
           args: -- --check
 
   cargo_clippy:
+    needs: [detect-new-version]
+    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
     name: Lint
     runs-on: ubuntu-latest
     steps:
@@ -49,6 +86,8 @@ jobs:
           command: clippy
 
   cargo_build:
+    needs: [detect-new-version]
+    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
     name: Build
     runs-on: ubuntu-latest
     steps:
@@ -74,6 +113,8 @@ jobs:
           command: build
 
   cargo_test:
+    needs: [detect-new-version]
+    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
     name: Test
     runs-on: ubuntu-latest
     steps:
