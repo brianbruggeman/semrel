@@ -120,6 +120,7 @@ impl ManifestObjectSafe for PyProjectToml {
 
 impl Manifest for PyProjectToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
+        tracing::debug!("Parsing pyproject.toml");
         let manifest = toml::from_str(data.as_ref()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
         Ok(Self { manifest })
     }

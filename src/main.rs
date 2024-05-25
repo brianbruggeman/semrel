@@ -74,8 +74,8 @@ struct CliData {
 }
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt().with_env_filter(EnvFilter::from_default_env()).init();
     dotenvy::dotenv().ok();
+    tracing_subscriber::fmt().with_env_filter(EnvFilter::from_default_env()).init();
     let opts = Opts::parse();
 
     let path = &opts.path;
@@ -90,10 +90,7 @@ fn main() -> anyhow::Result<()> {
                 tracing::info!("Configuration path found: {}", config_path.display());
                 Some(config_path)
             }
-            None => {
-                tracing::info!("No configuration file found.");
-                None
-            }
+            None => None,
         },
     };
     let config_rules = match &config_path {
@@ -109,7 +106,7 @@ fn main() -> anyhow::Result<()> {
             }
         },
         None => {
-            tracing::info!("Using default rules for configuration.  Could not load: {}", path);
+            tracing::info!("Using default rules for configuration.");
             SemRelConfig::default().rules().into_iter().collect::<Vec<_>>()
         }
     };
@@ -117,12 +114,12 @@ fn main() -> anyhow::Result<()> {
         .chain(config_rules)
         .chain(build_default_rules())
         .collect::<Vec<_>>();
-    tracing::info!("Rules: {} active rules.", rules.len());
+    tracing::info!("Active rules: {}", rules.len());
     for (commit_type, bump_rule) in rules.iter() {
-        tracing::trace!("Active rule: {commit_type:?} -> {bump_rule:?}");
+        tracing::trace!(" - Active: {commit_type:?} -> {bump_rule:?}");
     }
-    let changelog = get_changelog(&repo, &rules)?;
     let manifest_path = find_manifest(path)?;
+    let changelog = get_changelog(&repo, &manifest_path, &rules)?;
     tracing::info!("Found manifest: {}", manifest_path.display());
     let current_version = changelog.current_version;
     tracing::info!("Found manifest version: {current_version}");

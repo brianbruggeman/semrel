@@ -20,7 +20,19 @@ pub struct ConventionalCommit {
 
 impl ConventionalCommit {
     pub fn new(commit_message: impl AsRef<str>) -> Result<Self, ConventionalCommitError> {
-        let pruned_message = prune_message(commit_message.as_ref());
+        if commit_message.as_ref().trim().is_empty() {
+            return Err(ConventionalCommitError::EmptyCommitMessage);
+        }
+        let pruned_message = {
+            let new_message = prune_message(commit_message.as_ref());
+            match new_message.is_empty() {
+                true => {
+                    tracing::trace!("Pruned message empty.  Using original commit message: {:?}", commit_message.as_ref());
+                    commit_message.as_ref().to_owned()
+                }
+                false => new_message,
+            }
+        };
         let parsed = CommitMessageParser::parse(Rule::commit_message, &pruned_message).map_err(|err| ConventionalCommitError::InvalidCommitMessage(err.to_string()))?;
         let mut commit = ConventionalCommit::default();
 
@@ -42,7 +54,7 @@ impl ConventionalCommit {
 
     /// Creates a string representation of the commit
     pub fn message(&self) -> String {
-        self.to_string()
+        prune_message(self.to_string())
     }
 
     fn parse_commit_type(pair: pest::iterators::Pair<Rule>) -> Result<CommitType, ConventionalCommitError> {
@@ -268,7 +280,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case::empty("", ConventionalCommitError::InvalidCommitMessage(" --> 1:1\n  |\n1 | \n  | ^---\n  |\n  = expected commit_type or subject".to_string()))]
+    #[case::empty("", ConventionalCommitError::EmptyCommitMessage)]
     fn test_commit_parser_unhappy_paths(#[case] commit_message: impl AsRef<str>, #[case] expected: ConventionalCommitError) {
         let result = ConventionalCommit::new(commit_message);
         assert!(result.is_err());

@@ -10,23 +10,25 @@ pub fn find_manifest(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError> {
     ]
     .into_iter()
     .inspect(|path| {
-        tracing::debug!("Checking for: {}", path.display());
+        tracing::debug!("Checking for manifest under: {}", path.display());
     })
     .find(|path| path.exists() && path.is_file())
     .inspect(|path| {
-        tracing::debug!("Found: {}", path.display());
+        tracing::debug!("Found manifest under: {}", path.display());
     })
     .ok_or_else(|| ManifestError::InvalidManifestPath(path.as_ref().to_path_buf()))
 }
 
 pub fn parse_manifest(path: impl AsRef<Path>) -> Result<Box<dyn ManifestObjectSafe>, ManifestError> {
-    tracing::debug!("Searching: {}", path.as_ref().display());
-    let manifest_path = find_manifest(path)?;
-    tracing::debug!("Found: {}", manifest_path.display());
-    let data = std::fs::read_to_string(&manifest_path).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-    let manifest_filename = match manifest_path.file_name() {
+    let mut path = path.as_ref().to_owned();
+    if !path.is_file() {
+        path = find_manifest(path)?;
+    }
+    let data = std::fs::read_to_string(&path).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+    tracing::debug!("Reading manifest file: {}", path.display());
+    let manifest_filename = match path.file_name() {
         Some(filename) => filename.to_string_lossy(),
-        None => return Err(ManifestError::InvalidManifestPath(manifest_path)),
+        None => return Err(ManifestError::InvalidManifestPath(path)),
     };
     tracing::debug!("Found manifest file: {}", manifest_filename);
 
@@ -34,7 +36,7 @@ pub fn parse_manifest(path: impl AsRef<Path>) -> Result<Box<dyn ManifestObjectSa
         f if f == CargoToml::manifest_filename() => Ok(Box::new(CargoToml::parse(data)?)),
         f if f == PackageJson::manifest_filename() => Ok(Box::new(PackageJson::parse(data)?)),
         f if f == PyProjectToml::manifest_filename() => Ok(Box::new(PyProjectToml::parse(data)?)),
-        _ => Err(ManifestError::InvalidManifestPath(manifest_path)),
+        _ => Err(ManifestError::InvalidManifestPath(path)),
     }
 }
 

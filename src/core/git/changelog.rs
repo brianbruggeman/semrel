@@ -4,7 +4,19 @@ use std::path::{Path, PathBuf};
 use git2::{Oid, TreeWalkMode};
 
 use super::CommitInfo;
-use crate::{BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest};
+use crate::{top_of_repo, BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest};
+
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct CommitGroup {
+    commit_type: CommitType,
+    scopes: Vec<(String, Vec<CommitInfo>)>,
+}
+
+impl CommitGroup {
+    pub fn new(commit_type: CommitType, scopes: Vec<(String, Vec<CommitInfo>)>) -> Self {
+        Self { commit_type, scopes }
+    }
+}
 
 pub struct ChangeLog {
     pub current_version: SimpleVersion,
@@ -50,9 +62,9 @@ impl ChangeLog {
         let aggregated_commits = self.aggregated_commits();
         let today = chrono::Local::now();
         let mut notes = format!("# Release notes: {} ({})\n", self.next_version(rules), today.format("%Y-%m-%d"));
-        for (commit_type, scopes) in aggregated_commits {
-            notes.push_str(&format!("\n\n## {}\n", commit_type.as_release_note()));
-            for (scope, commits) in scopes {
+        for commit_group in aggregated_commits {
+            notes.push_str(&format!("\n\n## {}\n", commit_group.commit_type.as_release_note()));
+            for (scope, commits) in commit_group.scopes {
                 if !scope.is_empty() {
                     notes.push_str(&format!("\n### {}\n", scope));
                 }
@@ -64,7 +76,7 @@ impl ChangeLog {
         notes
     }
 
-    pub fn aggregated_commits(&self) -> Vec<(CommitType, Vec<(String, Vec<CommitInfo>)>)> {
+    pub fn aggregated_commits(&self) -> Vec<CommitGroup> {
         let mut map: HashMap<CommitType, HashMap<String, Vec<CommitInfo>>> = HashMap::new();
         for commit_info in &self.changes {
             let commit_type = commit_info.commit.commit_type.clone();
@@ -73,9 +85,9 @@ impl ChangeLog {
             let scope = entry.entry(scope).or_default();
             scope.push(commit_info.clone());
         }
-        let mut vec: Vec<(CommitType, Vec<(String, Vec<CommitInfo>)>)> = map
+        let mut vec: Vec<CommitGroup> = map
             .into_iter()
-            .map(|(commit_type, scopes)| (commit_type, scopes.into_iter().collect()))
+            .map(|(commit_type, scopes)| CommitGroup::new(commit_type, scopes.into_iter().collect()))
             .collect();
         vec.sort();
         vec
@@ -90,19 +102,38 @@ impl ChangeLog {
 ///   - For majors, this is going back to the previous major bump which includes all minors and patches since then
 ///
 ///
-pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
-    let repo_path = repo.path().parent().unwrap().to_path_buf();
-    tracing::debug!("Starting get_changelog for path: {}", repo_path.display());
-    let manifest = SupportedManifest::try_from(repo_path.clone()).map_err(|err| {
+pub fn get_changelog(repo: &git2::Repository, manifest_path: impl Into<PathBuf>, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
+    let manifest_path = manifest_path.into();
+    tracing::trace!("Getting changelog for manifest path: {}", manifest_path.display());
+    let project_path = manifest_path.parent().unwrap();
+    tracing::trace!("Getting changelog for project path: {}", project_path.display());
+    let repo_path = top_of_repo(project_path)?;
+    let project_path = Box::leak(Box::new({
+        let project_path = project_path.canonicalize().unwrap();
+        if project_path.is_dir() {
+            project_path.canonicalize().unwrap()
+        } else {
+            project_path.parent().unwrap().canonicalize().unwrap().to_path_buf()
+        }
+    }));
+    let relative_manifest_path = {
+        let new_path = compute_relative_path(&repo_path, &manifest_path);
+        match new_path.starts_with("./") {
+            true => new_path.strip_prefix("./").unwrap().to_path_buf(),
+            false => new_path,
+        }
+    };
+    tracing::trace!("Searching for relative manifest path: {}", relative_manifest_path.display());
+    let relative_project_path = compute_relative_path(&repo_path, project_path);
+    tracing::debug!("Starting get_changelog for path: {}", relative_project_path.display());
+    let manifest = SupportedManifest::try_from(manifest_path.to_owned()).map_err(|err| {
         tracing::error!("Failed to get manifest: {err}");
         err
     })?;
-    let filename: PathBuf = manifest.filename()?.into();
-    tracing::debug!("Manifest filename: {}", filename.display());
     let current_version = manifest.version()?;
     tracing::debug!("Current version: {}", current_version);
     let mut max_bump = BumpRule::default();
-    let commits = revwalk_commit_log(repo)?;
+    let commits = revwalk_commit_log(repo, &manifest_path)?;
     // first we need to collect all of the commits for this version
     let mut captured_commits = vec![];
     let rules = rules.to_vec();
@@ -112,13 +143,16 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
         let commit = repo
             .find_commit(oid)
             .map_err(|_| RepositoryError::CommitNotFound(oid.to_string()))?;
-        let files = commit_info
+        tracing::trace!("Found commit: {commit:?}");
+        if let Some(path) = commit_info
             .files
             .iter()
-            .map(|file| file.file_name().unwrap().to_str().unwrap())
-            .collect::<Vec<_>>();
-        let path = files.iter().find(|f| **f == filename.file_name().unwrap().to_str().unwrap());
-        if let Some(path) = path {
+            .inspect(|f| {
+                tracing::trace!("Looking for manifest file [{oid}]: {} =? {}", f.display(), relative_manifest_path.display());
+            })
+            .find(|f| *f == &relative_manifest_path)
+        {
+            tracing::debug!("Manifest file found: {}", path.display());
             let data = load_file_data(repo, &commit, path)?;
             let previous_version = SupportedManifest::parse(path, &data)?.version()?;
             if previous_version < current_version {
@@ -149,8 +183,9 @@ pub fn get_changelog(repo: &git2::Repository, rules: &[(CommitType, BumpRule)]) 
                 break;
             }
         } else {
-            let data = load_file_data(repo, &commit, filename.clone())?;
-            let previous_version = SupportedManifest::parse(filename.clone(), &data)?.version()?;
+            tracing::debug!("No manifest updates found in commit.");
+            let data = load_file_data(repo, &commit, &relative_manifest_path)?;
+            let previous_version = SupportedManifest::parse(relative_manifest_path.clone(), &data)?.version()?;
             if previous_version < current_version {
                 // So when the current commit is the one that's updated the version, we want to exclude it
                 if captured_commits.len() == 1 {
@@ -203,8 +238,8 @@ fn load_file_data(repo: &git2::Repository, commit: &git2::Commit, path: impl AsR
 /// This has no filter but simply returns all commits in the repository converted from oid to commit information
 /// As an iterator, this is a lazy eval.  We do not want to capture the entire commit history in memory
 #[allow(clippy::needless_lifetimes)]
-pub fn revwalk_commit_log<'a>(repo: &'a git2::Repository) -> Result<impl IntoIterator<Item = CommitInfo> + 'a, RepositoryError> {
-    let walker = revwalk(repo)?;
+pub fn revwalk_commit_log<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>) -> Result<impl IntoIterator<Item = CommitInfo> + 'a, RepositoryError> {
+    let walker = revwalk(repo, project_path)?;
     let data = walker.into_iter().flat_map(|oid| {
         let commit = repo
             .find_commit(oid)
@@ -213,7 +248,7 @@ pub fn revwalk_commit_log<'a>(repo: &'a git2::Repository) -> Result<impl IntoIte
         let files_changed = get_files_changed(repo, oid)?;
         let timestamp = commit.time().seconds();
         let timestamp = num_traits::cast::<i64, u64>(timestamp).unwrap();
-        let info = CommitInfo::new(oid.to_string(), files_changed, conventional_commit, timestamp);
+        let info: CommitInfo = CommitInfo::new(oid.to_string(), files_changed, conventional_commit, timestamp);
         Ok::<CommitInfo, RepositoryError>(info)
     });
     Ok(data)
@@ -264,8 +299,19 @@ fn get_files_changed(repo: &git2::Repository, oid: impl Into<git2::Oid>) -> Resu
 
 /// Generates an iterator that walks the repository in reverse order
 #[allow(clippy::needless_lifetimes)]
-pub fn revwalk<'a>(repo: &'a git2::Repository) -> Result<impl IntoIterator<Item = Oid> + 'a, RepositoryError> {
+pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>) -> Result<impl IntoIterator<Item = Oid> + 'a, RepositoryError> {
     let repo = Box::leak(Box::new(repo));
+    let project_path = project_path.into();
+    let repo_path = top_of_repo(&project_path)?;
+    let project_path = Box::leak(Box::new({
+        let project_path = project_path.canonicalize().unwrap();
+        if project_path.is_dir() {
+            project_path.canonicalize().unwrap()
+        } else {
+            project_path.parent().unwrap().canonicalize().unwrap().to_path_buf()
+        }
+    }));
+
     let mut revwalk = repo.revwalk().map_err(|why| {
         tracing::error!("Failed to create revwalk: {why}");
         RepositoryError::InvalidRepository(why.to_string())
@@ -275,20 +321,111 @@ pub fn revwalk<'a>(repo: &'a git2::Repository) -> Result<impl IntoIterator<Item 
         tracing::error!("Failed to push head: {why}");
         RepositoryError::InvalidRepository(why.to_string())
     })?;
-    Ok(revwalk.flat_map(move |oid| match oid {
-        Ok(oid) => Ok(oid),
-        Err(why) => {
-            tracing::error!("Failed to get oid: {why}");
-            Err(RepositoryError::InvalidRepository(why.to_string()))
-        }
-    }))
+
+    // Return all of the oids, but filter on the project files
+    //  This is preliminary support for multi-package/monorepos
+    let data = revwalk
+        .flat_map(|oid| oid.map_err(|why| RepositoryError::InvalidRepository(why.to_string())))
+        .flat_map::<Result<(Oid, Vec<PathBuf>), RepositoryError>, _>(|oid| {
+            let files_changed = get_files_changed(repo, oid)?;
+            Ok((oid, files_changed))
+        })
+        .filter_map(move |(oid, files)| match files.is_empty() {
+            true => None,
+            false => match files
+                .iter()
+                .filter_map(|file| match repo_path.join(file).starts_with(&project_path) {
+                    true => Some(repo_path.join(file)),
+                    false => None,
+                })
+                .any(|file| file.starts_with(&project_path))
+            {
+                true => Some(oid),
+                false => None,
+            },
+        });
+    Ok(data.into_iter())
 }
+
+fn compute_relative_path(repo_path: impl AsRef<Path>, project_path: impl AsRef<Path>) -> PathBuf {
+    let repo_path = repo_path.as_ref();
+    let project_path = project_path.as_ref();
+    let mut relative_path = PathBuf::new();
+    let mut repo_components = repo_path.components();
+    let mut project_components = project_path.components();
+
+    // Find the common prefix
+    let mut index = 0;
+    loop {
+        match (repo_components.next(), project_components.next()) {
+            (Some(repo_comp), Some(project_comp)) if repo_comp == project_comp => {
+                index += 1;
+            }
+            _ => break,
+        }
+    }
+
+    // If there is no common prefix, return project_path
+    if index == 0 {
+        return project_path.to_path_buf();
+    }
+
+    // Determine the number of components to pop from repo_path
+    let mut repo_components = repo_path.components();
+    for _ in 0..index {
+        repo_components.next();
+    }
+    for _ in repo_components {
+        relative_path.push("..");
+    }
+
+    // Add the remaining components of project_path
+    let mut project_components = project_path.components();
+    for _ in 0..index {
+        project_components.next();
+    }
+    for component in project_components {
+        relative_path.push(component.as_os_str());
+    }
+
+    relative_path
+}
+
+// fn compute_relative_path(repo_path: &Path, project_path: &Path) -> PathBuf {
+//     let mut relative_path = PathBuf::new();
+//     let repo_count = repo_path.components().count();
+//     let path_count = project_path.components().count();
+//     let mut index = 0;
+//     for (repo_comp, project_comp) in repo_path.components().zip(project_path.components()) {
+//         if repo_comp != project_comp {
+//             break;
+//         }
+//         index += 1;
+//     }
+
+//     if index == 0 {
+//         project_path.to_path_buf()
+//     } else {
+//         if index == repo_count && index == path_count {
+//             return PathBuf::new();
+//         }
+
+//         let uncommon_components = project_path
+//             .components()
+//             .skip(index)
+//             .map(|c| c.as_os_str().to_str().unwrap())
+//             .collect::<Vec<_>>();
+//         relative_path.push(uncommon_components.join("/"));
+//         relative_path
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use git2::{Oid, Repository, Signature};
+    use rstest::rstest;
     use tempfile::TempDir;
 
     struct TestRepo {
@@ -298,6 +435,14 @@ mod tests {
 
     impl TestRepo {
         fn new() -> Self {
+            // Default behavior is to setup tracing to error if the RUST_LOG variable is not set
+            //  This code will only setup tracing if the RUST_LOG variable is set
+            if std::env::var("RUST_LOG").is_ok() {
+                tracing_subscriber::fmt()
+                    .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+                    .try_init()
+                    .ok();
+            }
             let temp_dir = TempDir::new().unwrap();
             let temp_path = temp_dir.path().join("repo");
             let repo = Repository::init(&temp_path).unwrap();
@@ -353,7 +498,7 @@ mod tests {
     #[test]
     fn case_empty() {
         let test_repo = TestRepo::new();
-        let result = revwalk(&test_repo.repo);
+        let result = revwalk(&test_repo.repo, test_repo.path());
         assert!(result.is_err(), "Expected an error for an empty repository");
     }
 
@@ -361,19 +506,28 @@ mod tests {
     fn case_single_commit() {
         let test_repo = TestRepo::new();
         test_repo.commit("Initial commit").expect("Failed to commit");
-        let result: Vec<Oid> = revwalk(&test_repo.repo).expect("Could not revwalk").into_iter().collect();
-        assert_eq!(result.len(), 1, "Expected one commit in the revwalk");
+        let result: Vec<Oid> = revwalk(&test_repo.repo, test_repo.path())
+            .expect("Could not revwalk")
+            .into_iter()
+            .collect();
+        assert_eq!(result.len(), 0, "Expected no commits in the revwalk");
     }
 
     #[test]
     fn case_multiple_commits() {
         let test_repo = TestRepo::new();
         test_repo.commit("Initial commit").expect("Failed to commit");
-        let result: Vec<Oid> = revwalk(&test_repo.repo).expect("Could not revwalk").into_iter().collect();
-        assert_eq!(result.len(), 1, "Expected two commits in the revwalk");
+        let result: Vec<Oid> = revwalk(&test_repo.repo, test_repo.path())
+            .expect("Could not revwalk")
+            .into_iter()
+            .collect();
+        assert_eq!(result.len(), 0, "Expected no commits in the revwalk");
         test_repo.commit("Another commit").expect("Failed to commit");
-        let result: Vec<Oid> = revwalk(&test_repo.repo).expect("Could not revwalk").into_iter().collect();
-        assert_eq!(result.len(), 2, "Expected two commits in the revwalk");
+        let result: Vec<Oid> = revwalk(&test_repo.repo, test_repo.path())
+            .expect("Could not revwalk")
+            .into_iter()
+            .collect();
+        assert_eq!(result.len(), 0, "Expected no commits in the revwalk");
     }
 
     #[test]
@@ -381,12 +535,14 @@ mod tests {
         let test_repo = TestRepo::new();
         test_repo.commit("Initial commit").expect("Failed to commit");
         test_repo.commit("Another commit").expect("Failed to commit");
-        let mut walker = revwalk(&test_repo.repo).expect("Could not revwalk").into_iter();
+        let mut walker = revwalk(&test_repo.repo, test_repo.path())
+            .expect("Could not revwalk")
+            .into_iter();
         let mut counter = 0;
         while let Some(_oid) = walker.next() {
             counter += 1;
         }
-        assert_eq!(counter, 2, "Expected two commits in the revwalk");
+        assert_eq!(counter, 0, "Expected no commits in the revwalk, because no files");
     }
 
     #[test]
@@ -427,12 +583,28 @@ mod tests {
         test_repo.commit("Add file1.txt").unwrap();
         test_repo.add_file("file2.txt", "Hello, again!").expect("Failed to add file");
         test_repo.commit("Add file2.txt").unwrap();
+        let path = test_repo.path();
 
-        let commit_log = revwalk_commit_log(&test_repo.repo).unwrap();
+        let commit_log = revwalk_commit_log(&test_repo.repo, path).unwrap();
         let commits: Vec<_> = commit_log.into_iter().collect();
 
         assert_eq!(commits.len(), 2);
         assert_eq!(commits[0].commit.message(), "Add file2.txt");
         assert_eq!(commits[1].commit.message(), "Add file1.txt");
+    }
+
+    #[rstest]
+    #[case::empty_empty("", "", "")]
+    #[case::empty_root("", "/root", "/root")]
+    #[case::root_empty("/root", "", "")]
+    #[case::initial_overlap_extra_project("/root/path", "/root/path/to/file", "to/file")]
+    #[case::initial_overlap_extra_root("/root/path/to/file", "/root/path", "../../")]
+    #[case::cargo_toml("/root/path", "/root/path/Cargo.toml", "Cargo.toml")]
+    fn test_relative_path(#[case] repo_path: &str, #[case] project_path: &str, #[case] expected: &str) {
+        let repo_path = Path::new(repo_path);
+        let project_path = Path::new(project_path);
+        let expected = Path::new(expected);
+        let result = compute_relative_path(repo_path, project_path);
+        assert_eq!(result, expected);
     }
 }

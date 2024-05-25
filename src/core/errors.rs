@@ -26,7 +26,7 @@ pub enum ManifestError {
     InvalidManifest(String),
     #[error("Invalid repository: {0}")]
     InvalidRepository(String),
-    #[error("Invalid repository path: {0}")]
+    #[error("Write error: {0}")]
     WriteError(String),
 }
 
@@ -86,6 +86,8 @@ pub enum ConventionalCommitError {
     InvalidRepositoryError(String),
     #[error("Invalid Parse: could not parse as {0}.")]
     InvalidParse(String),
+    #[error("Empty commit message")]
+    EmptyCommitMessage,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]

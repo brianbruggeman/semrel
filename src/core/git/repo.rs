@@ -22,10 +22,31 @@ pub fn top_of_repo(path: impl AsRef<Path>) -> Result<PathBuf, RepositoryError> {
     Ok(repo_top_path)
 }
 
+pub fn find_top_of_repo(path: impl AsRef<Path>) -> Result<PathBuf, RepositoryError> {
+    tracing::debug!("Searching for repository under: {}", path.as_ref().display());
+    let mut path = path.as_ref();
+    loop {
+        if is_repo(path) {
+            tracing::debug!("Found repository at: {}", path.display());
+            return path
+                .canonicalize()
+                .map_err(|_| RepositoryError::InvalidRepositoryPath(path.into()));
+        }
+        path = path
+            .parent()
+            .ok_or_else(|| RepositoryError::InvalidRepositoryPath(path.into()))?;
+    }
+}
+
 pub fn get_repo(path: impl AsRef<Path>) -> Result<Repository, RepositoryError> {
     // Open the repository
-    tracing::debug!("Searching for repository under: {}", path.as_ref().display());
-    let repo = Repository::open(path.as_ref()).map_err(|why| RepositoryError::CouldNotOpenRepository(why.to_string()))?;
-    tracing::debug!("Found repository at: {}", repo.path().parent().unwrap().display());
+    let path = find_top_of_repo(path.as_ref())?;
+    let repo = match Repository::open(path) {
+        Ok(repo) => repo,
+        Err(why) => {
+            tracing::error!("Could not open repository: {}", why);
+            return Err(RepositoryError::CouldNotOpenRepository(why.to_string()));
+        }
+    };
     Ok(repo)
 }

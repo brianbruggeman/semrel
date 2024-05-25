@@ -57,7 +57,7 @@ impl Manifest for PackageJson {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::debug!("Parsing package.json");
         let manifest = serde_json::from_str::<PkgJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
-        tracing::debug!("Parsed: {:?}", manifest);
+        tracing::trace!("Manifest: {manifest:?}");
         Ok(Self { manifest })
     }
 }

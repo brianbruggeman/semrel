@@ -6,6 +6,7 @@ use crate::{find_manifest, top_of_repo, ConfigError, SemRelConfig};
 pub const DEFAULT_CONFIG_FILENAME: &str = ".semrel.toml";
 
 pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
+    tracing::debug!("Searching for configuration file under: {}", path.as_ref().display());
     let paths = build_config_paths(path).ok().unwrap_or_default();
     let result = paths
         .iter()
@@ -83,11 +84,12 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
 
 fn build_config_paths(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigError> {
     let manifest_path = find_manifest(&path)?;
+    let project_path = manifest_path.parent().unwrap();
     let repo_path = top_of_repo(&path)?;
 
     let mut paths = vec![
         // Next to the manifest file
-        manifest_path.with_file_name(DEFAULT_CONFIG_FILENAME),
+        project_path.with_file_name(DEFAULT_CONFIG_FILENAME),
         // At the root of the project
         repo_path.join(DEFAULT_CONFIG_FILENAME),
     ];

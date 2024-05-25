@@ -3,21 +3,14 @@ pub fn prune_message(message: impl AsRef<str>) -> String {
         .as_ref()
         .lines()
         .filter(|line| {
-            let line = line.trim().to_ascii_lowercase();
+            let please_ignore = ["author", "co-authored-by", "change-id", "commit", "committer", "date", "merge", "parent", "reviewed-by", "tree"]
+                .iter()
+                .any(|&prefix| line.trim().to_ascii_lowercase().starts_with(prefix));
             // There could be a bunch of preamble here, but we're only interested in the conventional commit lines
-            let result = !line.starts_with("author")
-                && !line.starts_with("change-id")
-                && !line.starts_with("commit")
-                && !line.starts_with("committer")
-                && !line.starts_with("date")
-                && !line.starts_with("merge")
-                && !line.starts_with("parent")
-                && !line.starts_with("reviewed-by")
-                && !line.starts_with("tree");
-            if !result {
+            if please_ignore {
                 tracing::debug!("Pruning: {line:?}");
             }
-            result
+            !please_ignore
         })
         .map(|line| line.trim()) // make sure we can effectively trim empty lines around conventional commit lines
         .collect::<Vec<_>>()

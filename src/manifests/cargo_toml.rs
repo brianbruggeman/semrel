@@ -84,7 +84,7 @@ impl ManifestObjectSafe for CargoToml {
             Some(package) => match package.version.get() {
                 Ok(version) => {
                     if version == "1.0.0" {
-                        println!("package: {:?}", package);
+                        tracing::trace!("package: {:?}", package);
                     }
                     SimpleVersion::from_str(version.as_ref())
                         .map_err(|why| ManifestError::InvalidManifest(why.to_string()))

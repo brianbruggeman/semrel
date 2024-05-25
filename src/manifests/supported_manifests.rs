@@ -7,9 +7,9 @@ use crate::{CargoToml, Manifest, ManifestError, ManifestObjectSafe, ManifestStat
 pub enum SupportedManifest {
     #[default]
     Unsupported,
-    Rust(CargoToml),
-    Javascript(PackageJson),
-    Python(PyProjectToml),
+    Rust(Box<CargoToml>),
+    Javascript(Box<PackageJson>),
+    Python(Box<PyProjectToml>),
 }
 
 impl SupportedManifest {
@@ -45,9 +45,9 @@ impl SupportedManifest {
         let cargo_toml = CargoToml::manifest_filename();
         let pyproject_toml = PyProjectToml::manifest_filename();
         let parsed = match path.file_name().unwrap().to_str().unwrap() {
-            p if p.contains(package_json) => SupportedManifest::Javascript(PackageJson::parse(data)?),
-            p if p.contains(cargo_toml) => SupportedManifest::Rust(CargoToml::parse(data)?),
-            p if p.contains(pyproject_toml) => SupportedManifest::Python(PyProjectToml::parse(data)?),
+            p if p.contains(package_json) => SupportedManifest::Javascript(Box::new(PackageJson::parse(data)?)),
+            p if p.contains(cargo_toml) => SupportedManifest::Rust(Box::new(CargoToml::parse(data)?)),
+            p if p.contains(pyproject_toml) => SupportedManifest::Python(Box::new(PyProjectToml::parse(data)?)),
             _ => return Err(ManifestError::InvalidManifestPath(path.to_path_buf())),
         };
         tracing::trace!("Parsed manifest version: {:?}", parsed.version()?);
@@ -104,7 +104,12 @@ impl TryFrom<PathBuf> for SupportedManifest {
             }
             Err(ManifestError::InvalidManifestPath(value))
         } else if value.is_file() {
-            SupportedManifest::parse(value, "")
+            if value.exists() {
+                let data = std::fs::read_to_string(&value).map_err(|_| ManifestError::InvalidManifestPath(value.clone()))?;
+                SupportedManifest::parse(value, data)
+            } else {
+                Err(ManifestError::InvalidManifestPath(value))
+            }
         } else {
             Err(ManifestError::InvalidManifestPath(value))
         }
