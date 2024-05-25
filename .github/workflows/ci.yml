@@ -34,7 +34,9 @@ jobs:
       - name: Download semrel
         id: download-semrel
         run: |
-          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
+          echo "URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz"
+          curl -I -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz" -v
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "https://github.com/${{ github.repository }}/releases/download/${{ steps.get-latest-release.outputs.tag_name }}/semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz" -v
           if [ $? -ne 0 ]; then
             echo "Failed to download the file. Response from curl:"
             exit 1
