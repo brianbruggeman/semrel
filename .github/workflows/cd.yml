@@ -8,6 +8,7 @@ on:
 
 jobs:
   detect-new-version:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     uses: ./.github/workflows/detect-new-version.yml
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
