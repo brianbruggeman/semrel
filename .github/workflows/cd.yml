@@ -23,7 +23,9 @@ jobs:
       - name: Get latest semrel release
         id: get-latest-release
         run: |
-          tag_name=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r .tag_name)
+          release_data=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+          echo "Release data: $release_data"
+          tag_name=$(echo "$release_data" | jq -r .tag_name)
           echo "::set-output name=tag_name::$tag_name"
       - name: Download semrel
         id: download-semrel
