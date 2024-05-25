@@ -60,16 +60,16 @@ jobs:
           file ./semrel
           current_version=$(./semrel show current)
           echo "Current version: $current_version"
-          echo "::set-output name=current-version::$current_version"
+          echo "current-version=$current_version" >> $GITHUB_ENV
 
           next_version=$(./semrel show next)
           echo "Next version: $next_version"
-          echo "::set-output name=next-version::$next_version"
+          echo "next-version=$next_version" >> $GITHUB_ENV
 
           release_notes=$(./semrel show notes)
           echo "Release notes: $release_notes"
-          echo "::set-output name=release-notes::$release_notes"
+          echo "release-notes=$release_notes" >> $GITHUB_ENV
 
           log=$(./semrel show log)
           echo "Log: $log"
-          echo "::set-output name=log::$log"
+          echo "log=$log" >> $GITHUB_ENV
