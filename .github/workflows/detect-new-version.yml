@@ -10,10 +10,10 @@ jobs:
   detect-new-version:
     runs-on: ubuntu-latest
     outputs:
-      current-version: ${{ steps.semrel.outputs.current-version }}
-      next-version: ${{ steps.semrel.outputs.next-version }}
-      release-notes: ${{ steps.semrel.outputs.release-notes }}
-      log: ${{ steps.semrel.outputs.log }}
+      current-version: ${{ steps.set-outputs.outputs.current-version }}
+      next-version: ${{ steps.set-outputs.outputs.next-version }}
+      release-notes: ${{ steps.set-outputs.outputs.release-notes }}
+      log: ${{ steps.set-outputs.outputs.log }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -25,6 +25,7 @@ jobs:
       - name: Get latest semrel release
         id: get-latest-release
         run: |
+          set -e
           release_data=$(curl --silent -H "Authorization: token ${{ secrets.token }}" "https://api.github.com/repos/${{ github.repository }}/releases/latest")
           echo "Release data: $release_data"
           tag_name=$(echo "$release_data" | jq -r .tag_name)
@@ -34,9 +35,10 @@ jobs:
           asset_url="https://api.github.com/repos/${{ github.repository }}/releases/assets/${asset_id}"
           echo "Asset URL: $asset_url"
           echo "::set-output name=asset_url::$asset_url"
-      - name: Download and extract semrel
-        id: semrel
+      - name: Semrel commands
+        id: set-outputs
         run: |
+          set -e
           asset_url=${{ steps.get-latest-release.outputs.asset_url }}
           echo "Downloading from $asset_url"
           curl -L -H "Authorization: token ${{ secrets.token }}" -H "Accept: application/octet-stream" -o semrel-${{ steps.get-latest-release.outputs.tag_name }}-x86_64-unknown-linux-musl.tgz "$asset_url"
@@ -56,7 +58,6 @@ jobs:
           du -sh ./semrel
           echo "Checking file type:"
           file ./semrel
-          set -e
           current_version=$(./semrel show current)
           echo "Current version: $current_version"
           echo "::set-output name=current-version::$current_version"

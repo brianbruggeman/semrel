@@ -169,7 +169,7 @@ jobs:
           echo "next version: ${{ job.needs.detect-new-version.outputs.next-version }}"
           echo "log: ${{ job.needs.detect-new-version.outputs.log }}"
           git add Cargo.toml Cargo.lock
-          git commit -m "semrel: ${{ job.needs.detect-new-version.outputs.next-version }}\n\n${{ job.needs.detect-new-version.outputs.current-version }}\n\n${{ job.needs.detect-new-version.outputs.log }"
+          git commit -m "semrel: ${{ job.needs.detect-new-version.outputs.next-version }}\n\n${{ job.needs.detect-new-version.outputs.current-version }}\n\n${{ job.needs.detect-new-version.outputs.log }}"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
       - name: Create Release
