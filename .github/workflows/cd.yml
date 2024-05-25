@@ -42,7 +42,7 @@ jobs:
 
   cross-build:
     needs: [detect-new-version]
-    if ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
+    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
     strategy:
       matrix:
         include:
@@ -110,7 +110,7 @@ jobs:
 
   native-build:
     needs: [detect-new-version]
-    if ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
+    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
     strategy:
       matrix:
         include:
