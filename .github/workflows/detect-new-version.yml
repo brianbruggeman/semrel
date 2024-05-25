@@ -10,11 +10,16 @@ jobs:
   detect-new-version:
     runs-on: ubuntu-latest
     outputs:
-      current-version: ${{ steps.get-current-version.outputs.current-version }}
-      next-version: ${{ steps.set-new-version.outputs.next-version }}
-      release-notes: ${{ steps.get-release-notes.outputs.release-notes }}
-      log: ${{ steps.get-log.outputs.log }}
+      current-version: ${{ steps.semrel.outputs.current-version }}
+      next-version: ${{ steps.semrel.outputs.next-version }}
+      release-notes: ${{ steps.semrel.outputs.release-notes }}
+      log: ${{ steps.semrel.outputs.log }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          fetch-depth: 0
       - name: Install jq
         run: sudo apt-get install jq
       - name: Get latest semrel release
@@ -30,7 +35,7 @@ jobs:
           echo "Asset URL: $asset_url"
           echo "::set-output name=asset_url::$asset_url"
       - name: Download and extract semrel
-        id: download-semrel
+        id: semrel
         run: |
           asset_url=${{ steps.get-latest-release.outputs.asset_url }}
           echo "Downloading from $asset_url"
@@ -51,20 +56,8 @@ jobs:
           du -sh ./semrel
           echo "Checking file type:"
           file ./semrel
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: main
-          fetch-depth: 0
-      - name: Get current version
-        id: get-current-version
-        run: echo "::set-output name=current-version::$(./semrel show current)"
-      - name: Get new version
-        id: set-new-version
-        run: echo "::set-output name=next-version::$(./semrel show next)"
-      - name: Get release notes
-        id: get-release-notes
-        run: echo "::set-output name=release-notes::$(./semrel show notes)"
-      - name: Get Log
-        id: get-log
-        run: echo "::set-output name=log::$(./semrel show log)"
+          set -e
+          echo "::set-output name=current-version::$(./semrel show current)"
+          echo "::set-output name=next-version::$(./semrel show next)"
+          echo "::set-output name=release-notes::$(./semrel show notes)"
+          echo "::set-output name=log::$(./semrel show log)"
