@@ -8,12 +8,16 @@ on:
     outputs:
       current-version:
         description: "The current version"
+        value: ${{ jobs.detect-new-version.outputs.current-version }}
       next-version:
         description: "The next version"
+        value: ${{ jobs.detect-new-version.outputs.next-version }}
       release-notes:
         description: "The release notes for the next version"
+        value: ${{ jobs.detect-new-version.outputs.release-notes }}
       log:
         description: "The commit log for the next version"
+        value: ${{ jobs.detect-new-version.outputs.log }}
 
 jobs:
   detect-new-version:
