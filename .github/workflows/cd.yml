@@ -131,9 +131,9 @@ jobs:
         run: sudo apt-get install tar
       - name: Set permissions on artifacts
         run: |
-          # chmod +x aarch64-apple-darwin/semrel
-          # chmod +x x86_64-apple-darwin/semrel
-          # chmod +x aarch64-unknown-linux-musl/semrel
+          chmod +x aarch64-apple-darwin/semrel
+          chmod +x x86_64-apple-darwin/semrel
+          chmod +x aarch64-unknown-linux-musl/semrel
           chmod +x x86_64-unknown-linux-musl/semrel
       - name: Get new version with semrel
         id: version
@@ -142,17 +142,17 @@ jobs:
            echo "::set-output name=version::$version"
       - name: Update artifact names
         run: |
-          # mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ steps.version.outputs.version }}-amd64-apple-darwin
-          # mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin
-          # mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ steps.version.outputs.version }}-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl
           mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl
           echo "Path: ${PATH}"
           cp x86_64-unknown-linux-musl/semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
       - name: Package Artifacts
         run: |
-          # tar czvf semrel-${{ steps.version.outputs.version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
-          # tar czvf semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
-          # tar czvf semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
+          tar czvf semrel-${{ steps.version.outputs.version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
+          tar czvf semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
+          tar czvf semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
           tar czvf semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
       - name: Generate Release notes with semrel
         run: |
@@ -179,7 +179,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           files: |
-            x86_64-unknown-linux-musl.tgz
+            semrel-${{ steps.version.outputs.version }}-arm64-apple-darwin.tgz
+            semrel-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tgz
+            semrel-${{ steps.version.outputs.version }}-aarch64-unknown-linux-musl.tgz
+            semrel-${{ steps.version.outputs.version }}-x86_64-unknown-linux-musl.tgz
           name: semrel-${{ steps.version.outputs.version }}
           body_path: release-notes-${{ steps.version.outputs.version }}.md
           generate_release_notes: false
