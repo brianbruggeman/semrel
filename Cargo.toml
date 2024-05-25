@@ -1,7 +1,7 @@
 [package]
 name = "semrel"
 edition = "2021"
-version = "0.4.1"
+version = "0.4.2"
 
 [dependencies]
 anyhow = "1.0.83"
