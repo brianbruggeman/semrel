@@ -8,7 +8,6 @@ jobs:
   use-reusable-hello:
     uses: ./.github/workflows/world.yml
     name: Call Reusable Hello World
-    id: reusable-hello
 
   use-output:
     needs: [use-reusable-hello]
