@@ -11,6 +11,17 @@ jobs:
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
 
+  display-version:
+    needs: [detect-new-version]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display version
+        run: |
+          echo "Current version: ${{ needs.detect-new-version.outputs.current-version }}"
+          echo "Next version: ${{ needs.detect-new-version.outputs.next-version }}"
+          echo "Release notes: ${{ needs.detect-new-version.outputs.release-notes }}"
+          echo "Log: ${{ needs.detect-new-version.outputs.log }}"
+
   cargo_fmt:
     needs: [detect-new-version]
     if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
