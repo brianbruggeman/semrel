@@ -6,7 +6,6 @@ inputs:
     description: 'Branch to check out'
     required: false
     default: 'main'
-secrets:
   token:
     description: 'GitHub token to access the repository'
     required: true
