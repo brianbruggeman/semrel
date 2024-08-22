@@ -32,18 +32,34 @@ runs:
       run: |
         release_data=$(curl --silent "https://api.github.com/repos/brianbruggeman/semrel/releases/latest")
         tag_name=$(echo "$release_data" | jq -r .tag_name)
-        asset_id=$(echo "$release_data" | jq -r '.assets[] | select(.name == "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz") | .id')
+        assets=$(echo "$release_data" | jq -r '.assets[]')
+        asset_tag=$(echo "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz")
+        good_assets=$(echo "$assets" | jq -r 'select(.name == "${asset_tag}")')
+        found_asset_id=$(echo "$good_assets" | jq -r '.id')
+        asset_id=$(echo "$release_data" | jq -r --arg asset_tag "$asset_tag" '.assets[] | select(.name == $asset_tag) | .id')
+        asset_url=$(echo "https://api.github.com/repos/brianbruggeman/semrel/releases/assets/$asset_id")
+        semrel_filename=$(echo "semrel-$tag_name-x86_64-unknown-linux-musl")
+
+        echo "release_data=${release_data}"
+        echo "assets=${assets}"
+        echo "tag_name=${tag_name}"
+        echo "asset_tag=${asset_tag}"
+        echo "good_assets=${good_assets}"
+        echo "found_asset_id=${found_asset_id}"
+        echo "asset_id=${asset_id}"
+        echo "asset_url=${asset_url}"
+        echo "semrel_filename=${semrel_filename}"
 
         echo "tag_name=$tag_name" >> $GITHUB_ENV
-        echo "asset_url=https://api.github.com/repos/brianbruggeman/semrel/releases/assets/${asset_id}" >> $GITHUB_ENV
+        echo "asset_url=$asset_url" >> $GITHUB_ENV
+        echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
 
     - name: Download and extract semrel
       run: |
-        curl -L -H "Accept: application/octet-stream" \
-          -o semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz "${{ env.asset_url }}"
-        tar -xzf semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz -C . --strip-components=1
-        chmod +x ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl
-        mv ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl ./semrel
+        curl -L -H "Accept: application/octet-stream" -o ${{ env.semrel_filename }}.tgz ${{ env.asset_url }}
+        tar -xzf ${{ env.semrel_filename }}.tgz -C . --strip-components=1
+        chmod +x ${{ env.semrel_filename }}
+        mv ${{ env.semrel_filename }} ./semrel
 
     - name: Set outputs
       id: set-outputs
