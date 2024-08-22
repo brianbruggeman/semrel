@@ -1,5 +1,7 @@
 # semrel
 
+![CI Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/ci.yml/badge.svg)![CD Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml/badge.svg)
+
 A semantic release tool
 
 ## Docs
