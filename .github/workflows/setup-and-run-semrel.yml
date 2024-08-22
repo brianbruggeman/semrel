@@ -49,14 +49,14 @@ jobs:
 
           echo "tag_name=$tag_name" >> $GITHUB_ENV
           echo "asset_url=https://api.github.com/repos/brianbruggeman/semrel/releases/assets/${asset_id}" >> $GITHUB_ENV
+          echo "semrel_filename=semrel-$tag_name-x86_64-unknown-linux-musl" >> $GITHUB_ENV
 
       - name: Download and extract semrel
         run: |
-          curl -L -H "Accept: application/octet-stream" \
-            -o semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz "${{ env.asset_url }}"
-          tar -xzf semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz -C . --strip-components=1
-          chmod +x ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl
-          mv ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl ./semrel
+          curl -L -H "Accept: application/octet-stream" -o ${{ env.semrel_filename }}.tgz ${{ env.asset_url }}
+          tar -xzf ${{ env.semrel_filename }}.tgz -C . --strip-components=1
+          chmod +x ${{ env.semrel_filename }}
+          mv ${{ env.semrel_filename }} ./semrel
 
       - name: Set outputs
         id: set-outputs
