@@ -47,10 +47,9 @@ pub trait Manifest: ManifestStatic + ManifestObjectSafe {
             } else {
                 let root_path = Self::repo_root(path)?;
                 let manifest_path = root_path.join(manifest_filename);
-                if manifest_path.exists() {
-                    Ok(manifest_path)
-                } else {
-                    Err(ManifestError::InvalidManifestPath(path.to_path_buf()))
+                match manifest_path.exists() {
+                    true => Ok(manifest_path),
+                    false => Err(ManifestError::InvalidManifestPath(path.to_path_buf())),
                 }
             }
         } else {
