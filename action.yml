@@ -6,9 +6,6 @@ inputs:
     description: 'Branch to check out'
     required: false
     default: 'main'
-  token:
-    description: 'GitHub token to access the repository'
-    required: true
 outputs:
   current-version:
     description: 'The current version'
@@ -42,7 +39,7 @@ runs:
 
     - name: Download and extract semrel
       run: |
-        curl -L -H "Authorization: token ${{ inputs.token }}" -H "Accept: application/octet-stream" \
+        curl -L -H "Accept: application/octet-stream" \
           -o semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz "${{ env.asset_url }}"
         tar -xzf semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz -C . --strip-components=1
         chmod +x ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl
