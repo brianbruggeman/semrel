@@ -1,4 +1,6 @@
-![CI Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/ci.yml/badge.svg)![CD Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml/badge.svg)
+[![CD Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml/badge.svg)](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml)
+[![CI Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/ci.yml/badge.svg)](https://github.com/brianbruggeman/semrel/actions/workflows/ci.yml)
+
 
 # semrel
 A semantic release tool
