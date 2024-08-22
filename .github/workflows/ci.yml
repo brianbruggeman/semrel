@@ -10,21 +10,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  detect-new-version:
+  run-semrel:
     runs-on: ubuntu-latest
     steps:
-        - uses: actions/checkout@v2
-        - uses: ./action.yml
+        - uses: actions/checkout@v4
+        - uses: action.yml
           with:
             token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo_fmt:
-    needs: [detect-new-version]
-    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
+    needs: [run-semrel]
+    if: ${{ needs.run-semrel.outputs.next-version != needs.run-semrel.outputs.current-version }}
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
@@ -40,12 +40,12 @@ jobs:
           args: -- --check
 
   cargo_clippy:
-    needs: [detect-new-version]
-    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
+    needs: [run-semrel]
+    if: ${{ needs.run-semrel.outputs.next-version != needs.run-semrel.outputs.current-version }}
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
@@ -65,12 +65,12 @@ jobs:
           command: clippy
 
   cargo_build:
-    needs: [detect-new-version]
-    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
+    needs: [run-semrel]
+    if: ${{ needs.run-semrel.outputs.next-version != needs.run-semrel.outputs.current-version }}
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Cache cargo registry
         uses: actions/cache@v2
         with:
@@ -92,12 +92,12 @@ jobs:
           command: build
 
   cargo_test:
-    needs: [detect-new-version]
-    if: ${{ needs.detect-new-version.outputs.next-version != needs.detect-new-version.outputs.current-version }}
+    needs: [run-semrel]
+    if: ${{ needs.run-semrel.outputs.next-version != needs.run-semrel.outputs.current-version }}
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Cache cargo registry
         uses: actions/cache@v2
         with:
