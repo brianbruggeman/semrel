@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   run-semrel:
-    uses: brianbruggeman/semrel/.github/workflows/semrel-detect-version.yml@main
+    uses: brianbruggeman/semrel/.github/workflows/setup-and-run-semrel.yml@main
     with:
       branch: 'main'
 
