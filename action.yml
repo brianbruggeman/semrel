@@ -1,6 +1,11 @@
 name: 'Semrel'
 description: 'GitHub Action to detect new versions and generate release notes using semrel'
 author: 'Brian Bruggeman'
+inputs:
+  branch:
+    description: 'Branch to check out'
+    required: false
+    default: 'main'
 secrets:
   token:
     description: 'GitHub token to access the repository'
@@ -18,9 +23,9 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
-        ref: main
+        ref: ${{ inputs.branch }}
         fetch-depth: 0
 
     - name: Install jq
