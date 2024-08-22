@@ -1,0 +1,59 @@
+[package]
+name = "semrel"
+version = "0.4.13"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.83"
+atty = "0.2.14"
+cargo_toml = "0.20.4"
+chrono = "0.4.38"
+dirs = "5.0.1"
+dotenvy = "0.15.7"
+eyre = "0.6.12"
+num-traits = "0.2.19"
+once_cell = "1.19.0"
+package-json = "0.4.0"
+thiserror = "1.0.60"
+tracing = "0.1.40"
+
+[dependencies.clap]
+version = "4.5.4"
+features = ["derive", "env"]
+
+[dependencies.git2]
+version = "0.18.3"
+default-features = false
+
+[dependencies.pest]
+version = "2.7.10"
+features = ["pretty-print"]
+
+[dependencies.pest_derive]
+version = "2.7.10"
+features = ["grammar-extras"]
+
+[dependencies.serde]
+version = "1.0.202"
+features = ["derive"]
+
+[dependencies.serde_json]
+version = "1.0.117"
+features = ["preserve_order"]
+
+[dependencies.toml]
+version = "0.8.13"
+features = ["preserve_order"]
+
+[dependencies.tracing-subscriber]
+version = "0.3.18"
+features = ["env-filter", "serde", "serde_json", "json"]
+
+[dependencies.xdg]
+version = "2.5.2"
+features = ["serde"]
+
+[dev-dependencies]
+rstest = "0.22.0"
+tempfile = "3.12.0"
+textwrap = "0.16.1"

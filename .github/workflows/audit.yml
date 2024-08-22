@@ -1,0 +1,22 @@
+name: Audit
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run every Sunday at 00:00
+
+jobs:
+  # Separate setup job to optimize caching and compilation time, especially for local testing with 'act'
+  init-audit:
+    uses: ./.github/workflows/setup-audit.yml
+
+  # Main audit job, reusing setup to ensure consistent environment
+  audit:
+    needs: init-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/setup-audit.yml
+      - name: Run cargo audit
+        run: cargo audit
+
+# Note: For local testing on macOS, use:
+# act -P ubuntu-latest=catthehacker/ubuntu:act-latest --container-architecture linux/amd64 -j audit

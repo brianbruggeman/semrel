@@ -1,0 +1,46 @@
+whitespace = _{ (" " | "\t")* }
+
+// Standard commit types
+conventional_commit_sep = _{ ":" }
+punctuation = _{ (conventional_commit_sep | scope_start | scope_end ) }
+extra_punc = _{ (
+    " " | "\t" | "\n" | "\r"
+    | ":" | "(" | ")"
+    | "?" | "&" | "%" | "^" | "$" | "#" | "@" | "!"
+    | "{" | "}" | "+" | "="
+) }
+valid_word = _{ (!extra_punc ~ ANY)+ }
+commit_type = { valid_word }
+
+// Scope definitions
+scope_start = _{ "(" }
+scope_end = _{ ")" }
+scope = { valid_word }
+scope_expression = _{ scope_start ~ whitespace ~ scope ~ whitespace ~ scope_end }
+
+// Subject of the commit message
+subject = @{ (!NEWLINE ~ ANY)+ }
+
+// Footer of the commit message
+footer_start = _{ "BREAKING CHANGE" }
+footer = @{ (!NEWLINE ~ ANY)+ }
+
+// Body of the commit message
+body = @{ (!(NEWLINE ~ footer_start) ~ ANY)* }
+
+// Complete commit message structure for standard conventional commit with optional scope, body, and footer
+conventional_commit_message = _{
+    commit_type ~ scope_expression? ~ conventional_commit_sep ~ whitespace ~ subject ~ (NEWLINE ~ body)? ~ (NEWLINE ~ footer_start ~ ":" ~ whitespace ~ footer)?
+}
+
+non_compliant_commit = _{ subject ~ (NEWLINE ~ body)? ~ (NEWLINE ~ footer_start ~ ":" ~ whitespace ~ footer)? }
+
+// Rule to handle multiple commit message types, considering each possibility
+commit_message = _{
+    conventional_commit_message | non_compliant_commit
+}
+
+// Rule to handle multiple commit messages, each on a new line
+commit_messages = _{
+    SOI ~ (commit_message ~ NEWLINE)* ~ commit_message ~ EOI
+}
