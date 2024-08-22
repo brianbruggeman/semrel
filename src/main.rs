@@ -210,10 +210,7 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
                 std::process::exit(1);
             } else {
                 let config_path = cli_data.config_path.clone().unwrap();
-                let config = match load_config(config_path) {
-                    Ok(config) => config,
-                    Err(_why) => SemRelConfig::default(),
-                };
+                let config = load_config(config_path).unwrap_or_default();
                 let rules = config.rules().into_iter().collect::<Vec<_>>();
                 if rules.is_empty() {
                     eprintln!("No configuration data found");
