@@ -178,6 +178,8 @@ jobs:
           git commit -m "semrel: ${{ needs.run-semrel.outputs.next-version }}\n\n${{ needs.run-semrel.outputs.current-version }}\n\n${{ needs.run-semrel.outputs.log }}"
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
+      - name: Create Release Notes
+        run: echo "${{ needs.run-sumrel.outputs.release-notes }}" > release-notes-${{ needs.run-semrel.outputs.next-version }}.md
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
