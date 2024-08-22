@@ -1,0 +1,78 @@
+name: 'Semrel'
+description: 'Reusable Workflow to detect new versions and generate release notes using semrel'
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch to check out'
+        type: string
+        required: false
+        default: 'main'
+    secrets:
+      token:
+        description: 'GITHUB_TOKEN'
+        type: string
+        required: true
+    outputs:
+      current-version:
+        description: 'The current version'
+        value: ${{ jobs.semrel.outputs.current-version }}
+      next-version:
+        description: 'The next version'
+        value: ${{ jobs.semrel.outputs.next-version }}
+      release-notes:
+        description: 'The release notes for the next version'
+        value: ${{ jobs.semrel.outputs.release-notes }}
+      log:
+        description: 'The commit log for the next version'
+        value: ${{ jobs.semrel.outputs.log }}
+
+jobs:
+  semrel:
+    runs-on: ubuntu-latest
+    outputs:
+      current-version: ${{ steps.set-outputs.outputs.current-version }}
+      next-version: ${{ steps.set-outputs.outputs.next-version }}
+      release-notes: ${{ steps.set-outputs.outputs.release-notes }}
+      log: ${{ steps.set-outputs.outputs.log }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Get latest semrel release
+        id: get-latest-release
+        run: |
+          release_data=$(curl --silent "https://api.github.com/repos/brianbruggeman/semrel/releases/latest")
+          tag_name=$(echo "$release_data" | jq -r .tag_name)
+          asset_id=$(echo "$release_data" | jq -r '.assets[] | select(.name == "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz") | .id')
+
+          echo "tag_name=$tag_name" >> $GITHUB_ENV
+          echo "asset_url=https://api.github.com/repos/brianbruggeman/semrel/releases/assets/${asset_id}" >> $GITHUB_ENV
+
+      - name: Download and extract semrel
+        run: |
+          curl -L -H "Accept: application/octet-stream" \
+            -o semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz "${{ env.asset_url }}"
+          tar -xzf semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz -C . --strip-components=1
+          chmod +x ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl
+          mv ./semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl ./semrel
+
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          current_version=$(./semrel show current)
+          next_version=$(./semrel show next)
+          release_notes=$(./semrel show notes)
+          log=$(./semrel show log)
+
+          echo "::set-output name=current-version::$current_version"
+          echo "::set-output name=next-version::$next_version"
+          echo "::set-output name=release-notes::$release_notes"
+          echo "::set-output name=log::$log"

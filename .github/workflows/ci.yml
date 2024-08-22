@@ -11,12 +11,11 @@ concurrency:
 
 jobs:
   run-semrel:
-    runs-on: ubuntu-latest
-    steps:
-        - uses: actions/checkout@v4
-        - uses: ./action.yml
-          with:
-            token: ${{ secrets.GITHUB_TOKEN }}
+    uses: .github/workflows/semrel-detect-version.yml
+    with:
+      branch: 'main'
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo_fmt:
     needs: [run-semrel]
