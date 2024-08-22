@@ -9,12 +9,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   detect-new-version:
-    uses: ./.github/workflows/detect-new-version.yml
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+        - uses: ./action.yml
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo_fmt:
     needs: [detect-new-version]

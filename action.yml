@@ -1,7 +1,7 @@
 name: 'Semrel'
 description: 'GitHub Action to detect new versions and generate release notes using semrel'
 author: 'Brian Bruggeman'
-inputs:
+secrets:
   token:
     description: 'GitHub token to access the repository'
     required: true
