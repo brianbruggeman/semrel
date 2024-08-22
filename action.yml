@@ -25,10 +25,12 @@ runs:
         fetch-depth: 0
 
     - name: Install jq
+      shell:  bash
       run: sudo apt-get install -y jq
 
     - name: Get latest semrel release
       id: get-latest-release
+      shell:  bash
       run: |
         release_data=$(curl --silent "https://api.github.com/repos/brianbruggeman/semrel/releases/latest")
         tag_name=$(echo "$release_data" | jq -r .tag_name)
@@ -55,6 +57,7 @@ runs:
         echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
 
     - name: Download and extract semrel
+      shell:  bash
       run: |
         curl -L -H "Accept: application/octet-stream" -o ${{ env.semrel_filename }}.tgz ${{ env.asset_url }}
         tar -xzf ${{ env.semrel_filename }}.tgz -C . --strip-components=1
@@ -63,6 +66,7 @@ runs:
 
     - name: Set outputs
       id: set-outputs
+      shell:  bash
       run: |
         current_version=$(./semrel show current)
         next_version=$(./semrel show next)
