@@ -46,7 +46,8 @@ jobs:
           release_data=$(curl --silent "https://api.github.com/repos/brianbruggeman/semrel/releases/latest")
           tag_name=$(echo "$release_data" | jq -r .tag_name)
           assets=$(echo "$release_data" | jq -r '.assets[]')
-          good_assets=$(echo "$assets" | jq -r 'select(.name == "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz")')
+          asset_tag=$(echo "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz")
+          good_assets=$(echo "$assets" | jq -r 'select(.name == "${asset_tag}")')
           found_asset_id=$(echo "$good_assets" | jq -r '.id')
           asset_id=$(echo "$release_data" | jq -r '.assets[] | select(.name == "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz") | .id')
           asset_url=$(echo "https://api.github.com/repos/brianbruggeman/semrel/releases/assets/$asset_id")
@@ -54,9 +55,10 @@ jobs:
 
           echo "release_data=${release_data}"
           echo "assets=${assets}"
+          echo "tag_name=${tag_name}"
+          echo "asset_tag=${asset_tag}"
           echo "good_assets=${good_assets}"
           echo "found_asset_id=${found_asset_id}"
-          echo "tag_name=${tag_name}"
           echo "asset_id=${asset_id}"
           echo "asset_url=${asset_url}"
           echo "semrel_filename=${semrel_filename}"
