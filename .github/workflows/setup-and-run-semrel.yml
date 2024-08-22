@@ -1,5 +1,4 @@
 name: 'Semrel'
-description: 'Reusable Workflow to detect new versions and generate release notes using semrel'
 
 on:
   workflow_call:
