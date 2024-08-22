@@ -9,11 +9,6 @@ on:
         type: string
         required: false
         default: 'main'
-    secrets:
-      token:
-        description: 'GITHUB_TOKEN'
-        type: string
-        required: true
     outputs:
       current-version:
         description: 'The current version'

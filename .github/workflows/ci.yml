@@ -11,11 +11,9 @@ concurrency:
 
 jobs:
   run-semrel:
-    uses: .github/workflows/semrel-detect-version.yml
+    uses: .github/workflows/semrel-detect-version.yml@main
     with:
       branch: 'main'
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo_fmt:
     needs: [run-semrel]
