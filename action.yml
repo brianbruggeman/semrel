@@ -92,14 +92,14 @@ runs:
           echo "Version is updated."
           echo " - Current version: $current_version"
           echo " - Next version: $next_version"
-          echo -e $release_notes
+          printf "%s\n" "$release_notes"
           echo "# Log"
-          echo -e $log
+          printf "%s\n" "$log"
           echo "version-changed=true" >> $GITHUB_OUTPUT
         else
           echo "Version is the same."
           echo " - version: $current_version"
           echo "# Log"
-          echo -e $log
+          printf "%s\n" "$log"
           echo "version-changed=false" >> $GITHUB_OUTPUT
         fi
