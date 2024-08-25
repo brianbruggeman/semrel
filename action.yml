@@ -103,3 +103,7 @@ runs:
           printf "%s\n" "$log"
           echo "version-changed=false" >> $GITHUB_OUTPUT
         fi
+
+        # Debug: Print the GITHUB_OUTPUT file to verify it's correct
+        echo "DEBUG: Contents of GITHUB_OUTPUT:"
+        cat $GITHUB_OUTPUT
