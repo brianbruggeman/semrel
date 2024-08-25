@@ -13,12 +13,12 @@ inputs:
 outputs:
   current-version:
     description: 'The current version'
+  log:
+    description: 'Base64 encoded commit log for the next version'
   next-version:
     description: 'The next version'
   release-notes:
     description: 'Base64 encoded release notes for the next version'
-  log:
-    description: 'Base64 encoded commit log for the next version'
   version-changed:
     description: 'Identifies if current and next versions are different'
 runs:
@@ -63,7 +63,7 @@ runs:
         echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
 
     - name: Download and extract semrel
-      shell:  bash
+      shell: bash
       run: |
         curl -L -H "Accept: application/octet-stream" -o ${{ env.semrel_filename }}.tgz ${{ env.asset_url }}
         tar -xzf ${{ env.semrel_filename }}.tgz -C . --strip-components=1
@@ -71,7 +71,7 @@ runs:
         mv ${{ env.semrel_filename }} ./semrel
 
     - name: Set outputs
-      id: set-outputs
+      id: semrel
       shell:  bash
       run: |
         current_version=$(./semrel --path=${{ inputs.path }} show current)
@@ -103,6 +103,14 @@ runs:
           printf "%s\n" "$log"
           echo "version-changed=false" >> $GITHUB_OUTPUT
         fi
+
+    - name: Debug Outputs
+      run: |
+        echo "version-changed: ${{ steps.semrel.outputs.version-changed }}"
+        echo "current-version: ${{ steps.semrel.outputs.current-version }}"
+        echo "next-version: ${{ steps.semrel.outputs.next-version }}"
+        echo "release-notes: ${{ steps.semrel.outputs.release-notes }}"
+        echo "log: ${{ steps.semrel.outputs.log }}"
 
         # Debug: Print the GITHUB_OUTPUT file to verify it's correct
         echo "DEBUG: Contents of GITHUB_OUTPUT:"
