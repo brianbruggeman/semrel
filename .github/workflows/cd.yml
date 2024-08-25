@@ -53,19 +53,15 @@ jobs:
         with:
           path: ~/.cargo/bin/cross
           key: ${{ matrix.os }}-cross
-      - name: Check if Cross is installed
-        if: steps.cache-cross.outputs.cache-hit == 'true'
-        id: cross-check
+      - name: Install Cross
         run: |
           if command -v cross &> /dev/null
           then
-            echo "::set-output name=installed::true"
+              echo "Cross is installed.";
           else
-            echo "::set-output name=installed::false"
+              echo "Cross must be installed.";
+              cargo install cross
           fi
-      - name: Install Cross
-        if: steps.cross-check.outputs.installed != 'true'
-        run: cargo install cross
       - name: Cross Build
         run: |
           cross build --target ${{ matrix.target }} --release
