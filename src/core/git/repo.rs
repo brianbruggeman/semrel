@@ -24,7 +24,11 @@ pub fn top_of_repo(path: impl AsRef<Path>) -> Result<PathBuf, RepositoryError> {
 
 pub fn find_top_of_repo(path: impl AsRef<Path>) -> Result<PathBuf, RepositoryError> {
     tracing::debug!("Searching for repository under: {}", path.as_ref().display());
-    if let Ok(mut path) = path.as_ref().canonicalize().map_err(|_| RepositoryError::InvalidRepositoryPath(path.as_ref().into())) {
+    if let Ok(mut path) = path
+        .as_ref()
+        .canonicalize()
+        .map_err(|_| RepositoryError::InvalidRepositoryPath(path.as_ref().into()))
+    {
         loop {
             if is_repo(&path) {
                 tracing::debug!("Found repository at: {path:?}");
@@ -35,7 +39,8 @@ pub fn find_top_of_repo(path: impl AsRef<Path>) -> Result<PathBuf, RepositoryErr
             tracing::trace!("Repository not found: {path:?}.  Looking for parent");
             path = path
                 .parent()
-                .ok_or_else(|| RepositoryError::InvalidRepositoryPath(path.to_owned()))?.to_path_buf();
+                .ok_or_else(|| RepositoryError::InvalidRepositoryPath(path.to_owned()))?
+                .to_path_buf();
         }
     } else {
         Err(RepositoryError::InvalidRepositoryPath(path.as_ref().into()))
