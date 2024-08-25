@@ -18,7 +18,7 @@ jobs:
         log: ${{ steps.semrel.outputs.log }}
         next-version: ${{ steps.semrel.outputs.next-version }}
         release-notes: ${{ steps.semrel.outputs.release-notes }}
-        version-changed: ${{ steps.version-check.outputs.version-changed }}
+        version-changed: ${{ steps.semrel.outputs.version-changed }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,18 +27,9 @@ jobs:
         id: semrel
         uses: brianbruggeman/semrel@main
 
-      - name: Check for version change
-        id: version-check
-        run: |
-          if [ "${{ steps.semrel.outputs.next-version }}" != "${{ steps.semrel.outputs.current-version }}" ]; then
-            echo "version-changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "version-changed=false" >> $GITHUB_OUTPUT
-          fi
-
   cross-build:
     needs: [semrel]
-    if: ${{ needs.semrel.outputs.next-version != needs.semrel.outputs.current-version }}
+    if: ${{ needs.semrel.outputs.version-changed == 'true' }}
     strategy:
       matrix:
         include:
@@ -61,7 +52,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo/bin/cross
-          key: ${{ runner.os }}-cross
+          key: ${{ matrix.os }}-cross
       - name: Check if Cross is installed
         if: steps.cache-cross.outputs.cache-hit == 'true'
         id: cross-check
@@ -145,13 +136,14 @@ jobs:
           tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
           tar czvf semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
           tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+      - name: Install semrel
+        uses: brianbruggeman/semrel@main
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git log --oneline
           semrel update
           cargo update
           git add Cargo.toml Cargo.lock
