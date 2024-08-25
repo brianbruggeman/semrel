@@ -6,15 +6,19 @@ inputs:
     description: 'Branch to check out'
     required: false
     default: 'main'
+  path:
+    description: 'Path to project files'
+    required: false
+    default: '.'
 outputs:
   current-version:
     description: 'The current version'
   next-version:
     description: 'The next version'
   release-notes:
-    description: 'The release notes for the next version'
+    description: 'Base64 encoded release notes for the next version'
   log:
-    description: 'The commit log for the next version'
+    description: 'Base64 encoded commit log for the next version'
 runs:
   using: 'composite'
   steps:
@@ -68,12 +72,14 @@ runs:
       id: set-outputs
       shell:  bash
       run: |
-        current_version=$(./semrel show current)
-        next_version=$(./semrel show next)
-        release_notes=$(./semrel show notes)
-        log=$(./semrel show log)
+        release_notes=$(./semrel --path=${{ inputs.path }} show notes)
+        log=$(./semrel --path=${{ inputs.path }} show log)
 
-        echo "::set-output name=current-version::$current_version"
-        echo "::set-output name=next-version::$next_version"
-        echo "::set-output name=release-notes::$release_notes"
-        echo "::set-output name=log::$log"
+        # Encode multiline outputs to base64 to handle special characters and newlines
+        encoded_release_notes=$(echo "$release_notes" | base64 | tr -d '\n')
+        encoded_log=$(echo "$log" | base64 | tr -d '\n')
+
+        echo "current-version=$(./semrel --path=${{ inputs.path }} show current)" >> $GITHUB_OUTPUT
+        echo "next-version=$(./semrel --path=${{ inputs.path }} show next)" >> $GITHUB_OUTPUT
+        echo "release-notes=$encoded_release_notes" >> $GITHUB_OUTPUT
+        echo "log=$encoded_log" >> $GITHUB_OUTPUT
