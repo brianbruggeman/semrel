@@ -89,22 +89,13 @@ runs:
         echo "log=$encoded_log" >> $GITHUB_OUTPUT
 
         if [ "$next_version" != "$current_version" ]; then
-          echo "Version is updated."
-          echo " - Current version: $current_version"
-          echo " - Next version: $next_version"
-          printf "%s\n" "$release_notes"
-          echo "# Log"
-          printf "%s\n" "$log"
           echo "version-changed=true" >> $GITHUB_OUTPUT
         else
-          echo "Version is the same."
-          echo " - version: $current_version"
-          echo "# Log"
-          printf "%s\n" "$log"
           echo "version-changed=false" >> $GITHUB_OUTPUT
         fi
 
     - name: Debug Outputs
+      shell: bash
       run: |
         echo "version-changed: ${{ steps.semrel.outputs.version-changed }}"
         echo "current-version: ${{ steps.semrel.outputs.current-version }}"
