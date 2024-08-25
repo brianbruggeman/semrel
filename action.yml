@@ -13,14 +13,19 @@ inputs:
 outputs:
   current-version:
     description: 'The current version'
+    value: ${{ steps.semrel.outputs.current-version }}
   log:
     description: 'Base64 encoded commit log for the next version'
+    value: ${{ steps.semrel.outputs.log }}
   next-version:
     description: 'The next version'
+    value: ${{ steps.semrel.outputs.next-version }}
   release-notes:
     description: 'Base64 encoded release notes for the next version'
+    value: ${{ steps.semrel.outputs.release-notes }}
   version-changed:
     description: 'Identifies if current and next versions are different'
+    value: ${{ steps.semrel.outputs.version-changed }}
 runs:
   using: 'composite'
   steps:
