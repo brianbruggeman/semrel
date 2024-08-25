@@ -19,6 +19,8 @@ outputs:
     description: 'Base64 encoded release notes for the next version'
   log:
     description: 'Base64 encoded commit log for the next version'
+  version-changed:
+    description: 'Identifies if current and next versions are different'
 runs:
   using: 'composite'
   steps:
@@ -72,14 +74,24 @@ runs:
       id: set-outputs
       shell:  bash
       run: |
-        release_notes=$(./semrel --path=${{ inputs.path }} show notes)
+        current_version=$(./semrel --path=${{ inputs.path }} show current)
         log=$(./semrel --path=${{ inputs.path }} show log)
+        next_version=$(./semrel --path=${{ inputs.path }} show next)
+        release_notes=$(./semrel --path=${{ inputs.path }} show notes)
 
         # Encode multiline outputs to base64 to handle special characters and newlines
         encoded_release_notes=$(echo "$release_notes" | base64 | tr -d '\n')
         encoded_log=$(echo "$log" | base64 | tr -d '\n')
 
-        echo "current-version=$(./semrel --path=${{ inputs.path }} show current)" >> $GITHUB_OUTPUT
-        echo "next-version=$(./semrel --path=${{ inputs.path }} show next)" >> $GITHUB_OUTPUT
+        echo "current-version=$current_version" >> $GITHUB_OUTPUT
+        echo "next-version=$next_version" >> $GITHUB_OUTPUT
         echo "release-notes=$encoded_release_notes" >> $GITHUB_OUTPUT
         echo "log=$encoded_log" >> $GITHUB_OUTPUT
+
+        if [ "$next_version" != "$current_version" ]; then
+          echo "Version is updated."
+          echo "version-changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "Version is the same."
+          echo "version-changed=false" >> $GITHUB_OUTPUT
+        fi

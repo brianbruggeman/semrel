@@ -42,6 +42,7 @@ The github action will install semrel into the current (`.`) path for your githu
 This should be all you need to add:
 
 ```yaml
+- uses: actions/checkout@v4
 - name: Run semrel
   id: semrel
   uses: brianbruggeman/semrel@main
@@ -50,13 +51,16 @@ This should be all you need to add:
 To use, then:
 ```yaml
 - name: Take some action
-  if: ${{ steps.semrel.outputs.next-version != steps.semrel.outputs.current-version }}
+  if: ${{ steps.semrel.outputs.version-changed }}
   run: |
       echo ${{ steps.semrel.outputs.release-notes }} | base64 --decode > SEMREL_RELEASE_NOTES.md
       echo ${{ steps.semrel.outputs.log }} | base64 --decode > SEMREL_LOG.md
       # update the current manifest
       ./semrel update
       # Take more steps here to check in the manifest file and/or create a release
+
+- name: Create Release Notes
+  run: printf "%s" "${{ needs.semrel.outputs.release-notes }}" | base64 --decode > release-notes-${{ needs.semrel.outputs.next-version }}.md
 ```
 
 If you want to control the path to the project, assuming a multi-project repo, use:
