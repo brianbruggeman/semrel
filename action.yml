@@ -90,8 +90,16 @@ runs:
 
         if [ "$next_version" != "$current_version" ]; then
           echo "Version is updated."
+          echo " - Current version: $current_version"
+          echo " - Next version: $next_version"
+          printf "%s" $release_notes
+          echo "# Log"
+          printf "%s" $log
           echo "version-changed=true" >> $GITHUB_OUTPUT
         else
           echo "Version is the same."
+          echo " - version: $current_version"
+          echo "# Log"
+          printf "%s" $log
           echo "version-changed=false" >> $GITHUB_OUTPUT
         fi
