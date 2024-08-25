@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use super::{ManifestError, SimpleVersion};
-use crate::top_of_repo;
+use crate::find_top_of_repo;
 
 pub trait ManifestStatic {
     fn manifest_filename() -> &'static str;
@@ -58,7 +58,7 @@ pub trait Manifest: ManifestStatic + ManifestObjectSafe {
     }
 
     fn repo_root(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError> {
-        top_of_repo(path).map_err(|err| ManifestError::InvalidRepository(err.to_string()))
+        find_top_of_repo(path).map_err(|err| ManifestError::InvalidRepository(err.to_string()))
     }
 
     fn load(path: impl AsRef<Path>) -> Result<String, ManifestError>

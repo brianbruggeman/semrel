@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use xdg::BaseDirectories;
 
-use crate::{find_manifest, top_of_repo, ConfigError, SemRelConfig};
+use crate::{find_manifest, find_top_of_repo, ConfigError, SemRelConfig};
 pub const DEFAULT_CONFIG_FILENAME: &str = ".semrel.toml";
 
 pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
@@ -85,7 +85,7 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
 fn build_config_paths(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigError> {
     let manifest_path = find_manifest(&path)?;
     let project_path = manifest_path.parent().unwrap();
-    let repo_path = top_of_repo(&path)?;
+    let repo_path = find_top_of_repo(&path)?;
 
     let mut paths = vec![
         // Next to the manifest file

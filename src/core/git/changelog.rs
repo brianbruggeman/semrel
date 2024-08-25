@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use git2::{Oid, TreeWalkMode};
 
 use super::CommitInfo;
-use crate::{top_of_repo, BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest};
+use crate::{find_top_of_repo, BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest};
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct CommitGroup {
@@ -110,7 +110,7 @@ pub fn get_changelog(repo: &git2::Repository, manifest_path: impl Into<PathBuf>,
     tracing::trace!("Getting changelog for manifest path: {}", manifest_path.display());
     let project_path = manifest_path.parent().unwrap();
     tracing::trace!("Getting changelog for project path: {}", project_path.display());
-    let repo_path = top_of_repo(project_path)?;
+    let repo_path = find_top_of_repo(project_path)?;
     let project_path = Box::leak(Box::new({
         let project_path = project_path.canonicalize().unwrap();
         if project_path.is_dir() {
@@ -305,7 +305,7 @@ fn get_files_changed(repo: &git2::Repository, oid: impl Into<git2::Oid>) -> Resu
 pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>) -> Result<impl IntoIterator<Item = Oid> + 'a, RepositoryError> {
     let repo = Box::leak(Box::new(repo));
     let project_path = project_path.into();
-    let repo_path = top_of_repo(&project_path)?;
+    let repo_path = find_top_of_repo(&project_path)?;
     let project_path = Box::leak(Box::new({
         let project_path = project_path.canonicalize().unwrap();
         if project_path.is_dir() {
