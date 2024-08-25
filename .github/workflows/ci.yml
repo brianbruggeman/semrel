@@ -21,12 +21,6 @@ jobs:
         id: semrel
         uses: brianbruggeman/semrel@main
 
-      - name: Semrel debug
-        run: |
-          echo "version-changed: ${{ steps.semrel.outputs.version-changed}}"
-          echo "current-version: ${{ steps.semrel.outputs.current-version}}"
-          echo "next-version: ${{ steps.semrel.outputs.next-version}}"
-
       - name: Install rust toolchain
         if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         uses: dtolnay/rust-toolchain@stable
