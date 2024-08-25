@@ -51,13 +51,11 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.target }}
-          toolchain: stable
-          override: true
+            targets: ${{ matrix.target }}
       - name: Cache Cross
         id: cache-cross
         uses: actions/cache@v2
@@ -76,15 +74,12 @@ jobs:
           fi
       - name: Install Cross
         if: steps.cross-check.outputs.installed != 'true'
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cross
+        run: cargo install cross
       - name: Cross Build
         run: |
           cross build --target ${{ matrix.target }} --release
       - name: Archive
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/semrel
@@ -99,7 +94,7 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -110,7 +105,7 @@ jobs:
         run: |
           cargo build --release --target=${{ matrix.target }}
       - name: Archive
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/semrel
@@ -122,12 +117,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
       - name: Download Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
       - name: Install tar
         run: sudo apt-get install tar
       - name: Set permissions on artifacts
