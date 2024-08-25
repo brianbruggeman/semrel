@@ -11,14 +11,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-semrel:
-    uses: brianbruggeman/semrel/.github/workflows/setup-and-run-semrel.yml@main
-    with:
-      branch: 'main'
+  semrel:
+    runs-on: ubuntu-latest
+    outputs:
+        current-version: ${{ steps.semrel.outputs.current-version }}
+        log: ${{ steps.semrel.outputs.log }}
+        next-version: ${{ steps.semrel.outputs.next-version }}
+        release-notes: ${{ steps.semrel.outputs.release-notes }}
+        version-changed: ${{ steps.version-check.outputs.version-changed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run semrel
+        id: semrel
+        uses: brianbruggeman/semrel@main
+
+      - name: Check for version change
+        id: version-check
+        run: |
+          if [ "${{ steps.semrel.outputs.next-version }}" != "${{ steps.semrel.outputs.current-version }}" ]; then
+            echo "version-changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "version-changed=false" >> $GITHUB_OUTPUT
+          fi
 
   cross-build:
-    needs: [run-semrel]
-    if: ${{ needs.run-semrel.outputs.next-version != needs.run-semrel.outputs.current-version }}
+    needs: [semrel]
+    if: ${{ needs.semrel.outputs.next-version != needs.semrel.outputs.current-version }}
     strategy:
       matrix:
         include:
@@ -70,8 +90,8 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   native-build:
-    needs: [run-semrel]
-    if: ${{ needs.run-semrel.outputs.next-version != needs.run-semrel.outputs.current-version }}
+    needs: [semrel]
+    if: ${{ needs.semrel.outputs.next-version != needs.semrel.outputs.current-version }}
     strategy:
       matrix:
         include:
@@ -96,7 +116,7 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   release:
-    needs: [run-semrel, cross-build, native-build]
+    needs: [semrel, cross-build, native-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -118,18 +138,18 @@ jobs:
           chmod +x x86_64-unknown-linux-musl/semrel
       - name: Update artifact names
         run: |
-          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ needs.run-semrel.outputs.next-version }}-amd64-apple-darwin
-          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-apple-darwin
-          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ needs.run-semrel.outputs.next-version }}-aarch64-unknown-linux-musl
-          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-unknown-linux-musl
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl
+          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl
           echo "Path: ${PATH}"
-          cp x86_64-unknown-linux-musl/semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
+          cp x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
       - name: Package Artifacts
         run: |
-          tar czvf semrel-${{ needs.run-semrel.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
-          tar czvf semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
-          tar czvf semrel-${{ needs.run-semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
-          tar czvf semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
       - name: Commit changes
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -139,15 +159,17 @@ jobs:
           git log --oneline
           semrel update
           cargo update
-          echo "current version: ${{ needs.run-semrel.outputs.current-version }}"
-          echo "next version: ${{ needs.run-semrel.outputs.next-version }}"
-          echo "log: ${{ needs.run-semrel.outputs.log }}"
           git add Cargo.toml Cargo.lock
-          git commit -m "semrel: ${{ needs.run-semrel.outputs.next-version }}\n\n${{ needs.run-semrel.outputs.current-version }}\n\n${{ needs.run-semrel.outputs.log }}"
+          # Create a nice log
+          printf "semrel: %s\n\n%s\n\n# Log\n%s\n" \
+          "${{ needs.semrel.outputs.next-version }}" \
+          "$(echo '${{ needs.semrel.outputs.release-notes }}' | base64 --decode)" \
+          "$(echo '${{ needs.semrel.outputs.log }}' | base64 --decode)" \
+          | git commit -F -
           git remote set-url origin https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
       - name: Create Release Notes
-        run: printf "%s" "${{ needs.run-semrel.outputs.release-notes }}" > release-notes-${{ needs.run-semrel.outputs.next-version }}.md
+        run: printf "%s" "${{ needs.semrel.outputs.release-notes }}" | base64 --decode > release-notes-${{ needs.semrel.outputs.next-version }}.md
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -155,15 +177,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           files: |
-            semrel-${{ needs.run-semrel.outputs.next-version }}-arm64-apple-darwin.tgz
-            semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-apple-darwin.tgz
-            semrel-${{ needs.run-semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz
-            semrel-${{ needs.run-semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz
-          name: semrel-${{ needs.run-semrel.outputs.next-version }}
-          body_path: release-notes-${{ needs.run-semrel.outputs.next-version }}.md
+            semrel-${{ needs.semrel.outputs.next-version }}-arm64-apple-darwin.tgz
+            semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin.tgz
+            semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz
+            semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz
+          name: semrel-${{ needs.semrel.outputs.next-version }}
+          body_path: release-notes-${{ needs.semrel.outputs.next-version }}.md
           generate_release_notes: false
           make_latest: true
           draft: false
           prerelease: false
-          tag_name: ${{ needs.run-semrel.outputs.next-version }}
+          tag_name: ${{ needs.semrel.outputs.next-version }}
           token: ${{ secrets.RELEASE_TOKEN }}
