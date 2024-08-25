@@ -9,7 +9,67 @@ A semantic release tool
 
 See the [book](./docs/src/SUMMARY.md) for more information.
 
+### Configuration
+
+While the configuration _is_ [detailed]((./docs/src/configuration.md)) in the book, here is a quick reference for creating or updating the semrel config file at the project level or the root of the repository (e.g. `.semrel.toml`), or under an XDG compliant path (e.g. `~/.config/semrel/config.toml`) or for the system under `/etc/semrel/config.toml`:
+
+```toml
+[semrel.rules]
+feat = "minor"
+chore = "patch"
+fix = "patch"
+perf = "patch"
+refactor = "patch"
+revert = "patch"
+style = "patch"
+build = "none"
+ci = "none"
+cd = "none"
+docs = "none"
+test = "none"
+```
 ## Usage
+
+## Github action
+
+The github action will install semrel into the current (`.`) path for your github action and can be used subsequently in any run step.  Additionally, the following are output:
+
+- `current-version`:  this will represent the current version found within the manifest
+- `next-version`: this will represent the calculated next version from the `current-version`
+- `log`: this is a base-64 encoded form of the log lines used to generate the next release version
+- `release-notes`: this is a base-64 encoded form of the release notes based on git log parsed
+
+This should be all you need to add:
+
+```yaml
+- name: Run semrel
+  id: semrel
+  uses: brianbruggeman/semrel@main
+```
+
+To use, then:
+```yaml
+- name: Take some action
+  if: ${{ steps.semrel.outputs.next-version != steps.semrel.outputs.current-version }}
+  run: |
+      echo ${{ steps.semrel.outputs.release-notes }} | base64 --decode > SEMREL_RELEASE_NOTES.md
+      echo ${{ steps.semrel.outputs.log }} | base64 --decode > SEMREL_LOG.md
+      # update the current manifest
+      ./semrel update
+      # Take more steps here to check in the manifest file and/or create a release
+```
+
+If you want to control the path to the project, assuming a multi-project repo, use:
+
+```yaml
+- name: Run semrel
+  id: semrel
+  uses: brianbruggeman/semrel@main
+  with:
+    path: './to/some/project'
+```
+
+### Command-line
 
 ```bash
 $ semrel
