@@ -34,6 +34,9 @@ impl CommitInfo {
     }
 
     pub fn rule(&self, rules: &[(CommitType, BumpRule)]) -> BumpRule {
+        if self.commit.is_breaking() {
+            return BumpRule::Major;
+        }
         let rules = rules.iter().map(|(ct, br)| (ct.into(), *br)).collect::<Vec<_>>();
         let rules = match rules.is_empty() {
             true => crate::build_default_rules().collect::<Vec<_>>(),
