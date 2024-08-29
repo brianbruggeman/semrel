@@ -19,7 +19,7 @@ jobs:
 
       - name: Run semrel
         id: semrel
-        uses: brianbruggeman/semrel@main
+        uses: brianbruggeman/semrel@${{ github.ref }}
 
       - name: Install rust toolchain
         if: ${{ steps.semrel.outputs.version-changed == 'true' }}
