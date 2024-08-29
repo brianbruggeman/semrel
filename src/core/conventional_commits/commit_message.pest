@@ -6,9 +6,12 @@ punctuation = _{ (conventional_commit_sep | scope_start | scope_end ) }
 extra_punc = _{ (
     " " | "\t" | "\n" | "\r"
     | ":" | "(" | ")"
-    | "?" | "&" | "%" | "^" | "$" | "#" | "@" | "!"
-    | "{" | "}" | "+" | "="
+    | "?" | "&" | "%" | "^" | "$" | "#" | "@"
+    | "!" | "{" | "}" | "+" | "="
 ) }
+breaking_change_shorthand = { ( "!" )+ }
+breaking_change_phrase = { "BREAKING CHANGE" | "!!!" }
+breaking_change_prefix = _{ breaking_change_phrase ~ (":" ~ whitespace)? }
 valid_word = _{ (!extra_punc ~ ANY)+ }
 commit_type = { valid_word }
 
@@ -17,23 +20,25 @@ scope_start = _{ "(" }
 scope_end = _{ ")" }
 scope = { valid_word }
 scope_expression = _{ scope_start ~ whitespace ~ scope ~ whitespace ~ scope_end }
+commit_expression = _{ breaking_change_shorthand? ~ commit_type ~ scope_expression? ~ breaking_change_shorthand? }
 
 // Subject of the commit message
-subject = @{ (!NEWLINE ~ ANY)+ }
+subject = @{ (!NEWLINE ~ breaking_change_shorthand? ~ breaking_change_phrase? ~ ANY)+ }
 
-// Footer of the commit message
-footer_start = _{ "BREAKING CHANGE" }
-footer = @{ (!NEWLINE ~ ANY)+ }
-
-// Body of the commit message
-body = @{ (!(NEWLINE ~ footer_start) ~ ANY)* }
+// Body or Footer Section
+section_segment = @{ (!NEWLINE ~ ANY)+ }
+section = @{ section_segment ~ (NEWLINE+ ~ section_segment)* }
 
 // Complete commit message structure for standard conventional commit with optional scope, body, and footer
 conventional_commit_message = _{
-    commit_type ~ scope_expression? ~ conventional_commit_sep ~ whitespace ~ subject ~ (NEWLINE ~ body)? ~ (NEWLINE ~ footer_start ~ ":" ~ whitespace ~ footer)?
+    commit_expression ~ conventional_commit_sep ~ whitespace ~ subject
+    ~ (NEWLINE+ ~ (breaking_change_prefix)? ~ section)*
 }
 
-non_compliant_commit = _{ subject ~ (NEWLINE ~ body)? ~ (NEWLINE ~ footer_start ~ ":" ~ whitespace ~ footer)? }
+// Non-compliant commit without a clear structure
+non_compliant_commit = _{
+    subject ~ (NEWLINE+ ~ section)*
+}
 
 // Rule to handle multiple commit message types, considering each possibility
 commit_message = _{

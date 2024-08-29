@@ -16,6 +16,7 @@ pub struct ConventionalCommit {
     pub footer: Option<String>,
     pub body: Option<String>,
     pub prefix: Option<String>,
+    pub breaking_change: bool,
 }
 
 impl ConventionalCommit {
@@ -38,11 +39,27 @@ impl ConventionalCommit {
 
         for inner in parsed.into_iter() {
             match inner.as_rule() {
+                Rule::breaking_change_shorthand => commit.breaking_change = true,
+                Rule::breaking_change_phrase => commit.breaking_change = true,
                 Rule::commit_type => commit.commit_type = ConventionalCommit::parse_commit_type(inner)?,
                 Rule::scope => commit.scope = ConventionalCommit::parse_scope(inner)?,
                 Rule::subject => commit.subject = ConventionalCommit::parse_subject(inner)?,
-                Rule::footer => commit.footer = ConventionalCommit::parse_footer(inner)?,
-                Rule::body => commit.body = ConventionalCommit::parse_body(inner)?,
+                Rule::section => {
+                    let (body, footer) = inner
+                        .as_str()
+                        .split("\n\n")
+                        .fold((vec![], String::new()), |(mut body, footer), new_block| {
+                            body.push(footer);
+                            (body, new_block.to_string())
+                        });
+                    if !body.is_empty() {
+                        commit.body = Some(body.join("\n\n"));
+                    }
+                    if !footer.is_empty() {
+                        commit.footer = Some(footer);
+                    }
+                }
+                // Rule::body => commit.body = ConventionalCommit::parse_body(inner)?,
                 _ => tracing::debug!("Ignoring rule: {:?}", inner.as_rule()),
             }
         }
@@ -83,17 +100,6 @@ impl ConventionalCommit {
         Ok(pair.as_str().to_string())
     }
 
-    fn parse_footer(pair: pest::iterators::Pair<Rule>) -> Result<Option<String>, ConventionalCommitError> {
-        Ok(Some(pair.as_str().to_string()))
-    }
-
-    fn parse_body(pair: pest::iterators::Pair<Rule>) -> Result<Option<String>, ConventionalCommitError> {
-        match pair.as_str().is_empty() {
-            true => Ok(None),
-            false => Ok(Some(pair.as_str().to_string())),
-        }
-    }
-
     fn finalize_commit(commit: &mut ConventionalCommit) {
         if commit.commit_type == CommitType::Unknown && commit.scope.is_none() && !commit.subject.is_empty() {
             commit.commit_type = CommitType::NonCompliant;
@@ -101,18 +107,8 @@ impl ConventionalCommit {
         }
     }
 
-    pub fn is_breaking(&self, breaking_message: impl AsRef<str>) -> bool {
-        let breaking_message = breaking_message.as_ref();
-        let result = self
-            .footer
-            .as_ref()
-            .map_or(false, |footer| footer.starts_with(breaking_message))
-            || self.body.as_ref().map_or(false, |body| body.starts_with(breaking_message))
-            || self.subject.contains(breaking_message);
-        if result {
-            tracing::debug!("This commit is a breaking change");
-        }
-        result
+    pub fn is_breaking(&self) -> bool {
+        self.breaking_change
     }
 }
 
@@ -128,12 +124,14 @@ impl fmt::Display for ConventionalCommit {
             Some(scope) => format!("({})", scope),
             None => "".to_string(),
         };
+
         let title = match &self.commit_type {
             CommitType::NonCompliant => "".to_string(),
             CommitType::Unknown => "".to_string(),
             CommitType::Custom(value) => value.clone(),
             _ => self.commit_type.to_string(),
         };
+
         let mut string = match title.is_empty() {
             true => self.subject.to_string(),
             false => format!("{}{}: {}", title, scope, self.subject),
@@ -142,8 +140,14 @@ impl fmt::Display for ConventionalCommit {
         if let Some(body) = &self.body {
             string = format!("{string}\n\n{body}");
         }
+
         if let Some(footer) = &self.footer {
-            string = format!("{string}\n\n{footer}");
+            string = match self.breaking_change {
+                true => format!("{string}\n\nBREAKING CHANGE: {footer}"),
+                false => format!("{string}\n\n{footer}"),
+            };
+        } else if self.breaking_change {
+            string = format!("{string}\n\nBREAKING CHANGE");
         }
         write!(f, "{string}")
     }
@@ -232,11 +236,11 @@ mod tests {
         CommitType::NonCompliant,
         "",
         "add commit message parser",
-        "\nThis is a multi-line commit message",
-        ""
+        "",
+        "This is a multi-line commit message"
     )]
     #[case::merged_pr_commit("Ignore changes from Black -> Ruff (#4032)", CommitType::NonCompliant, "", "Ignore changes from Black -> Ruff (#4032)", "", "")]
-    #[case::squashed_feature_branch_commit(squashed_feature_branch_commit(), "chore", "package", "upgrade ruff (#4031)", format!("\n\n{}", squashed_feature_branch_commit_body().trim()), "")]
+    #[case::squashed_feature_branch_commit(squashed_feature_branch_commit(), "chore", "package", "upgrade ruff (#4031)", "\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting", "* chore(ci): update ci to use ruff format")]
     #[case::footer_included(
         "feat: add commit message parser\n\nBREAKING CHANGE: this is a breaking change",
         "feat",
@@ -258,24 +262,25 @@ mod tests {
             false => Some(scope.as_ref().to_string()),
         };
         let commit = ConventionalCommit::new(commit_message.as_ref()).unwrap();
-        assert_eq!(commit.commit_type, commit_type.into());
-        assert_eq!(commit.scope, scope);
-        assert_eq!(commit.subject, subject.as_ref());
         assert_eq!(
-            commit.body,
-            match body.as_ref().is_empty() {
-                true => None,
-                false => Some(body.as_ref().to_string()),
-            },
-            "Commit input was: {:?}.  Got: {commit:?}",
+            commit.commit_type,
+            commit_type.into(),
+            "Commit Type failed. Commit input was: {:#?}.  Got: {commit:#?}.",
+            commit_message.as_ref()
+        );
+        assert_eq!(commit.scope, scope, "Scope failed. Commit input was: {:#?}.  Got: {commit:#?}.", commit_message.as_ref());
+        assert_eq!(commit.subject, subject.as_ref(), "Subject failed.  Commit input was: {:#?}.  Got: {commit:#?}", commit_message.as_ref());
+        assert_eq!(
+            commit.body.clone().unwrap_or_default(),
+            body.as_ref(),
+            "Body failed. Commit input was: {:#?}.  Got: {commit:#?}",
             commit_message.as_ref()
         );
         assert_eq!(
-            commit.footer,
-            match footer.as_ref().is_empty() {
-                true => None,
-                false => Some(footer.as_ref().to_string()),
-            }
+            commit.footer.clone().unwrap_or_default(),
+            footer.as_ref(),
+            "Footer failed. Commit input was: {:#?}.  Got: {commit:#?}",
+            commit_message.as_ref()
         );
     }
 
