@@ -14,20 +14,57 @@ concurrency:
 
 jobs:
   semrel:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
     outputs:
-        current-version: ${{ steps.semrel.outputs.current-version }}
-        log: ${{ steps.semrel.outputs.log }}
-        next-version: ${{ steps.semrel.outputs.next-version }}
-        release-notes: ${{ steps.semrel.outputs.release-notes }}
-        version-changed: ${{ steps.semrel.outputs.version-changed }}
+      current-version: ${{ steps.semrel.outputs.current-version }}
+      log: ${{ steps.semrel.outputs.log }}
+      next-version: ${{ steps.semrel.outputs.next-version }}
+      release-notes: ${{ steps.semrel.outputs.release-notes }}
+      version-changed: ${{ steps.semrel.outputs.version-changed }}
+      manifest-path: ${{ steps.semrel.outputs.manifest-path }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - id: semrel
-        uses: brianbruggeman/semrel@main
+      - name: Generate outputs
+        id: semrel
+        run: |
+            cp target/${{ matrix.target }}/release/semrel ./semrel
+            current_version=$(./semrel show current)
+            log=$(./semrel show log)
+            next_version=$(./semrel show next)
+            release_notes=$(./semrel show notes)
+            manifest_path=$(./semrel show manifest)
+
+            # Encode multiline outputs to base64 to handle special characters and newlines
+            encoded_release_notes=$(echo "$release_notes" | base64 | tr -d '\n')
+            encoded_log=$(echo "$log" | base64 | tr -d '\n')
+
+            echo "current-version=$current_version" >> $GITHUB_OUTPUT
+            echo "next-version=$next_version" >> $GITHUB_OUTPUT
+            echo "release-notes=$encoded_release_notes" >> $GITHUB_OUTPUT
+            echo "log=$encoded_log" >> $GITHUB_OUTPUT
+            echo "manifest-path=$manifest_path" >> $GITHUB_OUTPUT
+
+            if [ "$next_version" != "$current_version" ]; then
+            echo "version-changed=true" >> $GITHUB_OUTPUT
+            else
+            echo "version-changed=false" >> $GITHUB_OUTPUT
+            fi
+      - name: Build
+        run: cargo build --release --target=${{ matrix.target }}
+      - name: Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/semrel
 
   cross-build:
     needs: [semrel]
@@ -71,51 +108,33 @@ jobs:
           name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/semrel
 
-  native-build:
-    needs: [semrel]
-    if: ${{ needs.semrel.outputs.next-version != needs.semrel.outputs.current-version }}
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - name: Build
-        run: cargo build --release --target=${{ matrix.target }}
-      - name: Archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/semrel
-
   release:
-    needs: [semrel, cross-build, native-build]
+    needs: [cross-build, semrel]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - uses: brianbruggeman/semrel@main
-      - name: Setup git
+      - uses: actions/download-artifact@v4
+      - name: Set permissions on artifacts
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          chmod +x aarch64-apple-darwin/semrel
+          chmod +x x86_64-apple-darwin/semrel
+          chmod +x aarch64-unknown-linux-musl/semrel
+          chmod +x x86_64-unknown-linux-musl/semrel
+          cp x86_64-unknown-linux-musl/semrel ./semrel
 
       - name: Update manifest
         run: ./semrel update
 
       - name: Update lock
         run: cargo update
+
+      - name: Setup git
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Stage files
         run: git add Cargo.toml Cargo.lock
@@ -124,43 +143,34 @@ jobs:
         run: |
           # Create a nice log
           printf "semrel: %s\n\n%s\n\n# Log\n%s\n" \
-          "${{ needs.semrel.outputs.next-version }}" \
-          "$(echo '${{ needs.semrel.outputs.release-notes }}' | base64 --decode)" \
-          "$(echo '${{ needs.semrel.outputs.log }}' | base64 --decode)" \
+          "$(./semrel show next)" \
+          "$(./semrel show notes)" \
+          "$(./semrel show log)" \
           | git commit -F -
 
       - name: Push commit
         run: git push origin HEAD:main
 
       - name: Create Release Notes
-        run: printf "%s" "${{ needs.semrel.outputs.release-notes }}" | base64 --decode > release-notes-${{ needs.semrel.outputs.next-version }}.md
-
-      - uses: actions/download-artifact@v4
-
-      - name: Set permissions on artifacts
-        run: |
-          chmod +x aarch64-apple-darwin/semrel
-          chmod +x x86_64-apple-darwin/semrel
-          chmod +x aarch64-unknown-linux-musl/semrel
-          chmod +x x86_64-unknown-linux-musl/semrel
+        run: ./semrel show notes > release-notes-$(./semrel show next).md
 
       - name: Update artifact names
         run: |
-          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-amd64-apple-darwin
-          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin
-          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl
-          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl
-          cp x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-$(./semrel show next)-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-$(./semrel show next)-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-$(./semrel show next)-aarch64-unknown-linux-musl
+          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-$(./semrel show next)-x86_64-unknown-linux-musl
+          cp x86_64-unknown-linux-musl/semrel-$(./semrel show next)-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
 
       - name: Install tar
         run: sudo apt-get install tar
 
       - name: Package Artifacts
         run: |
-          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
-          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
-          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
-          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+          tar czvf semrel-$(./semrel show next)-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
+          tar czvf semrel-$(./semrel show next)-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
+          tar czvf semrel-$(./semrel show next)-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
+          tar czvf semrel-$(./semrel show next)-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
 
       - name: Create Release
         id: create_release
