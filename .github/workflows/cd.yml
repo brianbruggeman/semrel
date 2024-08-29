@@ -32,7 +32,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
+      - name: Build
+        run: cargo build --release --target=${{ matrix.target }}
       - name: Generate outputs
         id: semrel
         run: |
@@ -58,8 +59,6 @@ jobs:
             else
             echo "version-changed=false" >> $GITHUB_OUTPUT
             fi
-      - name: Build
-        run: cargo build --release --target=${{ matrix.target }}
       - name: Archive
         uses: actions/upload-artifact@v4
         with:
@@ -156,21 +155,21 @@ jobs:
 
       - name: Update artifact names
         run: |
-          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-$(./semrel show next)-amd64-apple-darwin
-          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-$(./semrel show next)-x86_64-apple-darwin
-          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-$(./semrel show next)-aarch64-unknown-linux-musl
-          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-$(./semrel show next)-x86_64-unknown-linux-musl
-          cp x86_64-unknown-linux-musl/semrel-$(./semrel show next)-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
+          mv aarch64-apple-darwin/semrel aarch64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-amd64-apple-darwin
+          mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin
+          mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl
+          mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl
+          cp x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
 
       - name: Install tar
         run: sudo apt-get install tar
 
       - name: Package Artifacts
         run: |
-          tar czvf semrel-$(./semrel show next)-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
-          tar czvf semrel-$(./semrel show next)-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
-          tar czvf semrel-$(./semrel show next)-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
-          tar czvf semrel-$(./semrel show next)-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-arm64-apple-darwin.tgz -C aarch64-apple-darwin .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin.tgz -C x86_64-apple-darwin .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl.tgz -C aarch64-unknown-linux-musl .
+          tar czvf semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl.tgz -C x86_64-unknown-linux-musl .
 
       - name: Create Release
         id: create_release
