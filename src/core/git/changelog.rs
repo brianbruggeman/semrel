@@ -325,12 +325,19 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
         RepositoryError::InvalidRepository(why.to_string())
     })?;
 
+    // Set time as sorter
+    revwalk.set_sorting(git2::Sort::TIME).map_err(|why| {
+        tracing::error!("Failed to push head: {why}");
+        RepositoryError::InvalidRepository(why.to_string())
+    })?;
+
     // Return all of the oids, but filter on the project files
     //  This is preliminary support for multi-package/monorepos
     #[allow(clippy::needless_borrows_for_generic_args)]
     let data = revwalk
         .flat_map(|oid| oid.map_err(|why| RepositoryError::InvalidRepository(why.to_string())))
         .flat_map::<Result<(Oid, Vec<PathBuf>), RepositoryError>, _>(|oid| {
+            println!("Oid: {:?}", oid);
             let files_changed = get_files_changed(repo, oid)?;
             Ok((oid, files_changed))
         })
