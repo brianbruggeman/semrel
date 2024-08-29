@@ -47,11 +47,12 @@ runs:
       shell: bash
       run: |
         url="https://api.github.com/repos/brianbruggeman/semrel/releases/latest"
-        release_data=$(curl --silent $url | base64 | tr -d '\n')
+        release_data=$(curl --silent $url)
         if [ $? -ne 0 ] || [ -z "$release_data" ]; then
           echo "Failed to fetch release data from URL: $url"
           exit 1
         fi
+        release_data=$(echo "$release_data" | base64 | tr -d '\n')
         echo "release_data=$release_data" >> $GITHUB_ENV
 
     - name: Extract tag name
@@ -71,25 +72,27 @@ runs:
       shell: bash
       run: |
         release_data=$(echo "${{ env.release_data }}" | base64 --decode)
-        assets=$(echo "$release_data" | jq -r '.assets[]' | base64 | tr -d '\n')
+        assets=$(echo "$release_data" | jq -r '.assets[]')
         if [ $? -ne 0 ] || [ -z "$assets" ]; then
           echo "Failed to extract assets from release data: $release_data"
           exit 1
         fi
+        assets=$(echo "$assets" | base64 | tr -d '\n')
         echo "assets=$assets" >> $GITHUB_ENV
 
     - name: Determine asset tag and good assets
       id: determine-asset-tag
       shell: bash
       run: |
-        assets=$(echo "${{ env.assets }}" | base64 --decode)
+        assets = $(echo "${{ env.assets }}" | base64 --decode)
         tag_name=$(echo "${{ env.tag_name }}")
         asset_tag="semrel-$tag_name-x86_64-unknown-linux-musl.tgz"
-        good_assets=$(echo "$assets" | jq -r 'select(.name == "$asset_tag")' | base64 | tr -d '\n')
+        good_assets=$(echo "$assets" | jq -r 'select(.name == "$asset_tag")')
         if [ $? -ne 0 ] || [ -z "$good_assets" ]; then
           echo "Failed to find good assets. Assets: ${{ env.assets }}, Asset Tag: $asset_tag"
           exit 1
         fi
+        good_assets=$(echo "$good_assets" | base64 | tr -d '\n')
         echo "asset_tag=$asset_tag" >> $GITHUB_ENV
         echo "good_assets=$good_assets" >> $GITHUB_ENV
 
@@ -97,8 +100,8 @@ runs:
       id: find-asset-id
       shell: bash
       run: |
-        asset_tag=$(echo "${{ env.asset_tag }}")
-        assets=$(echo "${{ env.assets }}" | base64 --decode)
+        asset_tag = $(echo "${{ env.asset_tag }}")
+        assets = $(echo "${{ env.assets }}" | base64 --decode)
         asset_id=$(echo "$assets" | jq -r --arg asset_tag "$asset_tag" 'select(.name == $asset_tag) | .id')
         if [ $? -ne 0 ] || [ -z "$asset_id" ]; then
           echo "Failed to find asset ID. Assets: $assets, Asset Tag: $asset_tag"
