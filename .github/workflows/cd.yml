@@ -113,7 +113,7 @@ jobs:
         run: ./semrel update
 
       - name: Update lock
-        run: cargo updaate
+        run: cargo update
 
       - name: Stage files
         run: git add Cargo.toml Cargo.lock
