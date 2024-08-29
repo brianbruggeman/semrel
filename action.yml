@@ -82,6 +82,7 @@ runs:
         fi
         assets=$(echo "$assets" | base64 | tr -d '\n')
         echo "assets=$assets" >> $GITHUB_ENV
+        echo "release_data=" >> $GITHUB_ENV
 
     - name: Find asset ID and URL
       id: find-asset-id
@@ -97,6 +98,7 @@ runs:
         asset_url="https://api.github.com/repos/brianbruggeman/semrel/releases/assets/$asset_id"
         echo "asset_id=$asset_id" >> $GITHUB_ENV
         echo "asset_url=$asset_url" >> $GITHUB_ENV
+        echo "assets=" >> $GITHUB_ENV
 
     - name: Download and extract semrel
       shell: bash
@@ -112,8 +114,6 @@ runs:
         echo "asset_id=" >> $GITHUB_ENV
         echo "asset_tag=" >> $GITHUB_ENV
         echo "asset_url=" >> $GITHUB_ENV
-        echo "assets=" >> $GITHUB_ENV
-        echo "release_data=" >> $GITHUB_ENV
         echo "semrel_filename=" >> $GITHUB_ENV
         echo "tag_name=" >> $GITHUB_ENV
 
