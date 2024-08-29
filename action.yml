@@ -46,6 +46,7 @@ runs:
       id: get-release-data
       shell: bash
       run: |
+        set +x
         url="https://api.github.com/repos/brianbruggeman/semrel/releases/latest"
         release_data=$(curl --silent $url)
         if [ $? -ne 0 ] || [ -z "$release_data" ]; then
@@ -54,11 +55,13 @@ runs:
         fi
         release_data=$(echo "$release_data" | base64 | tr -d '\n')
         echo "release_data=$release_data" >> $GITHUB_ENV
+        set -x
 
     - name: Extract tag name
       id: extract-tag-name
       shell: bash
       run: |
+        set +x
         release_data=$(echo "${{ env.release_data }}" | base64 --decode)
         tag_name=$(echo "$release_data" | jq -r .tag_name)
         if [ $? -ne 0 ] || [ -z "$tag_name" ]; then
@@ -66,11 +69,13 @@ runs:
           exit 1
         fi
         echo "tag_name=$tag_name" >> $GITHUB_ENV
+        set -x
 
     - name: Extract assets
       id: extract-assets
       shell: bash
       run: |
+        set +x
         release_data=$(echo "${{ env.release_data }}" | base64 --decode)
         assets=$(echo "$release_data" | jq -c '.assets[]')
         if [ $? -ne 0 ] || [ -z "$assets" ]; then
@@ -79,6 +84,7 @@ runs:
         fi
         assets=$(echo "$assets" | base64 | tr -d '\n')
         echo "assets=$assets" >> $GITHUB_ENV
+        set -x
 
     - name: Determine asset tag and good assets
       id: determine-asset-tag
