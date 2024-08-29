@@ -58,7 +58,7 @@ runs:
       id: extract-tag-name
       shell: bash
       run: |
-        release_data = $(echo "$release_data" | base64 --decode)
+        release_data = $(echo "${{ env.release_data }}" | base64 --decode)
         tag_name=$(echo "$release_data" | jq -r .tag_name)
         if [ $? -ne 0 ] || [ -z "$tag_name" ]; then
           echo "Failed to extract tag name from release data: $release_data"
