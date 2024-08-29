@@ -26,6 +26,9 @@ outputs:
   version-changed:
     description: 'Identifies if current and next versions are different'
     value: ${{ steps.semrel.outputs.version-changed }}
+  manifest-path:
+    description: 'Identifies path to manifest file'
+    value: ${{ steps.semrel.outputs.manifest-path }}
 runs:
   using: 'composite'
   steps:
@@ -39,32 +42,71 @@ runs:
       shell:  bash
       run: sudo apt-get install -y jq
 
-    - name: Get latest semrel release
-      id: get-latest-release
-      shell:  bash
+    - name: Get latest semrel release data
+      id: get-release-data
+      shell: bash
       run: |
-        release_data=$(curl --silent "https://api.github.com/repos/brianbruggeman/semrel/releases/latest")
-        tag_name=$(echo "$release_data" | jq -r .tag_name)
-        assets=$(echo "$release_data" | jq -r '.assets[]')
-        asset_tag=$(echo "semrel-${tag_name}-x86_64-unknown-linux-musl.tgz")
-        good_assets=$(echo "$assets" | jq -r 'select(.name == "${asset_tag}")')
-        found_asset_id=$(echo "$good_assets" | jq -r '.id')
-        asset_id=$(echo "$release_data" | jq -r --arg asset_tag "$asset_tag" '.assets[] | select(.name == $asset_tag) | .id')
-        asset_url=$(echo "https://api.github.com/repos/brianbruggeman/semrel/releases/assets/$asset_id")
-        semrel_filename=$(echo "semrel-$tag_name-x86_64-unknown-linux-musl")
-
-        echo "release_data=${release_data}"
-        echo "assets=${assets}"
-        echo "tag_name=${tag_name}"
-        echo "asset_tag=${asset_tag}"
-        echo "good_assets=${good_assets}"
-        echo "found_asset_id=${found_asset_id}"
-        echo "asset_id=${asset_id}"
-        echo "asset_url=${asset_url}"
-        echo "semrel_filename=${semrel_filename}"
-
+        url="https://api.github.com/repos/brianbruggeman/semrel/releases/latest"
+        release_data=$(curl --silent "$url")
+        if [ $? -ne 0 ] || [ -z "$release_data" ]; then
+          echo "Failed to fetch release data from URL: $url"
+          exit 1
+        fi
+        echo "release_data=$release_data" >> $GITHUB_ENV
+    
+    - name: Extract tag name
+      id: extract-tag-name
+      shell: bash
+      run: |
+        tag_name=$(echo "${{ env.release_data }}" | jq -r .tag_name)
+        if [ $? -ne 0 ] || [ -z "$tag_name" ]; then
+          echo "Failed to extract tag name from release data: ${{ env.release_data }}"
+          exit 1
+        fi
         echo "tag_name=$tag_name" >> $GITHUB_ENV
+    
+    - name: Extract assets
+      id: extract-assets
+      shell: bash
+      run: |
+        assets=$(echo "${{ env.release_data }}" | jq -r '.assets[]')
+        if [ $? -ne 0 ] || [ -z "$assets" ]; then
+          echo "Failed to extract assets from release data: ${{ env.release_data }}"
+          exit 1
+        fi
+        echo "assets=$assets" >> $GITHUB_ENV
+    
+    - name: Determine asset tag and good assets
+      id: determine-asset-tag
+      shell: bash
+      run: |
+        asset_tag="semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl.tgz"
+        good_assets=$(echo "${{ env.assets }}" | jq -r 'select(.name == "$asset_tag")')
+        if [ $? -ne 0 ] || [ -z "$good_assets" ]; then
+          echo "Failed to find good assets. Assets: ${{ env.assets }}, Asset Tag: $asset_tag"
+          exit 1
+        fi
+        echo "asset_tag=$asset_tag" >> $GITHUB_ENV
+        echo "good_assets=$good_assets" >> $GITHUB_ENV
+    
+    - name: Find asset ID and URL
+      id: find-asset-id
+      shell: bash
+      run: |
+        asset_id=$(echo "${{ env.assets }}" | jq -r --arg asset_tag "${{ env.asset_tag }}" 'select(.name == $asset_tag) | .id')
+        if [ $? -ne 0 ] || [ -z "$asset_id" ]; then
+          echo "Failed to find asset ID. Assets: ${{ env.assets }}, Asset Tag: ${{ env.asset_tag }}"
+          exit 1
+        fi
+        asset_url="https://api.github.com/repos/brianbruggeman/semrel/releases/assets/$asset_id"
+        echo "asset_id=$asset_id" >> $GITHUB_ENV
         echo "asset_url=$asset_url" >> $GITHUB_ENV
+    
+    - name: Set semrel filename
+      id: set-semrel-filename
+      shell: bash
+      run: |
+        semrel_filename="semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl"
         echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
 
     - name: Download and extract semrel
@@ -75,6 +117,10 @@ runs:
         chmod +x ${{ env.semrel_filename }}
         mv ${{ env.semrel_filename }} ./semrel
 
+    - name: Show commit logs used
+      shell: bash
+      run: ./semrel show log
+
     - name: Set outputs
       id: semrel
       shell:  bash
@@ -83,6 +129,7 @@ runs:
         log=$(./semrel --path=${{ inputs.path }} show log)
         next_version=$(./semrel --path=${{ inputs.path }} show next)
         release_notes=$(./semrel --path=${{ inputs.path }} show notes)
+        manifest_path=$(./semrel --path=${{ inputs.path }} show manifest)
 
         # Encode multiline outputs to base64 to handle special characters and newlines
         encoded_release_notes=$(echo "$release_notes" | base64 | tr -d '\n')
@@ -92,6 +139,7 @@ runs:
         echo "next-version=$next_version" >> $GITHUB_OUTPUT
         echo "release-notes=$encoded_release_notes" >> $GITHUB_OUTPUT
         echo "log=$encoded_log" >> $GITHUB_OUTPUT
+        echo "manifest-path=$manifest_path" >> $GITHUB_OUTPUT
 
         if [ "$next_version" != "$current_version" ]; then
           echo "version-changed=true" >> $GITHUB_OUTPUT
