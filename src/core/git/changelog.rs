@@ -325,6 +325,12 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
         RepositoryError::InvalidRepository(why.to_string())
     })?;
 
+    // Set time as sorter
+    revwalk.set_sorting(git2::Sort::TIME).map_err(|why| {
+        tracing::error!("Failed to push head: {why}");
+        RepositoryError::InvalidRepository(why.to_string())
+    })?;
+
     // Return all of the oids, but filter on the project files
     //  This is preliminary support for multi-package/monorepos
     #[allow(clippy::needless_borrows_for_generic_args)]

@@ -17,32 +17,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run semrel
-        id: semrel
-        uses: brianbruggeman/semrel@main
-
       - name: Install rust toolchain
-        if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install nightly with rustfmt and clippy
-        if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
 
       - name: Style
-        if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         run: cargo +nightly fmt -- --check
 
       - name: Lint
-        if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         run: cargo +nightly clippy
 
       - name: Build
-        if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         run: cargo build
 
       - name: Test
-        if: ${{ steps.semrel.outputs.version-changed == 'true' }}
         run: cargo test
