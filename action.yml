@@ -126,10 +126,6 @@ runs:
         chmod +x ${{ env.semrel_filename }}
         mv ${{ env.semrel_filename }} ./semrel
 
-    - name: Show commit logs used
-      shell: bash
-      run: ./semrel show log
-
     - name: Set outputs
       id: semrel
       shell:  bash
@@ -162,9 +158,10 @@ runs:
         echo "version-changed: ${{ steps.semrel.outputs.version-changed }}"
         echo "current-version: ${{ steps.semrel.outputs.current-version }}"
         echo "next-version: ${{ steps.semrel.outputs.next-version }}"
-        echo "release-notes: ${{ steps.semrel.outputs.release-notes }}"
-        echo "log: ${{ steps.semrel.outputs.log }}"
+        echo "manifest-path: ${{ steps.semrel.outputs.manifest-path }}"
 
-        # Debug: Print the GITHUB_OUTPUT file to verify it's correct
-        echo "DEBUG: Contents of GITHUB_OUTPUT:"
-        cat $GITHUB_OUTPUT
+    - name: Show commit logs used
+      shell: bash
+      run: |
+        echo "Show commit logs used"
+        ./semrel show log
