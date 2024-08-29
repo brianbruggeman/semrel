@@ -337,7 +337,6 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
     let data = revwalk
         .flat_map(|oid| oid.map_err(|why| RepositoryError::InvalidRepository(why.to_string())))
         .flat_map::<Result<(Oid, Vec<PathBuf>), RepositoryError>, _>(|oid| {
-            println!("Oid: {:?}", oid);
             let files_changed = get_files_changed(repo, oid)?;
             Ok((oid, files_changed))
         })
