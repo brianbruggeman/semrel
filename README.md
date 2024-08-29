@@ -1,5 +1,6 @@
-[![CD Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml/badge.svg)](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml)
 [![CI Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/ci.yml/badge.svg)](https://github.com/brianbruggeman/semrel/actions/workflows/ci.yml)
+[![CD Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml/badge.svg)](https://github.com/brianbruggeman/semrel/actions/workflows/cd.yml)
+[![Audit Workflow](https://github.com/brianbruggeman/semrel/actions/workflows/audit.yml/badge.svg)](https://github.com/brianbruggeman/semrel/actions/workflows/audit.yml)
 
 
 # semrel
