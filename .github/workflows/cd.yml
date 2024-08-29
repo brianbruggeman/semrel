@@ -59,6 +59,16 @@ jobs:
             else
             echo "version-changed=false" >> $GITHUB_OUTPUT
             fi
+
+      - name: Debug Outputs
+        shell: bash
+        run: |
+          echo "version-changed: ${{ steps.semrel.outputs.version-changed }}"
+          echo "current-version: ${{ steps.semrel.outputs.current-version }}"
+          echo "next-version: ${{ steps.semrel.outputs.next-version }}"
+          echo "manifest-path: ${{ steps.semrel.outputs.manifest-path }}"
+          semrel show log
+
       - name: Archive
         uses: actions/upload-artifact@v4
         with:
