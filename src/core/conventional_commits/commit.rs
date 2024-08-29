@@ -240,7 +240,14 @@ mod tests {
         "This is a multi-line commit message"
     )]
     #[case::merged_pr_commit("Ignore changes from Black -> Ruff (#4032)", CommitType::NonCompliant, "", "Ignore changes from Black -> Ruff (#4032)", "", "")]
-    #[case::squashed_feature_branch_commit(squashed_feature_branch_commit(), "chore", "package", "upgrade ruff (#4031)", "\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting", "* chore(ci): update ci to use ruff format")]
+    #[case::squashed_feature_branch_commit(
+        squashed_feature_branch_commit(),
+        "chore",
+        "package",
+        "upgrade ruff (#4031)",
+        "\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting",
+        "* chore(ci): update ci to use ruff format"
+    )]
     #[case::footer_included(
         "feat: add commit message parser\n\nBREAKING CHANGE: this is a breaking change",
         "feat",
