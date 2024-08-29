@@ -65,8 +65,8 @@ runs:
           echo "Failed to extract tag name from release data: $release_data"
           exit 1
         fi
-        asset_tag="semrel-$tag_name-x86_64-unknown-linux-musl.tgz"
-        semrel_filename="semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl"
+        semrel_filename="semrel-$tag_name-x86_64-unknown-linux-musl"
+        asset_tag="$semrel_filename.tgz"
         echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
         echo "asset_tag=$asset_tag" >> $GITHUB_ENV
 
