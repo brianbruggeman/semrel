@@ -39,6 +39,7 @@ The github action will install semrel into the current (`.`) path for your githu
 - `next-version`: this will represent the calculated next version from the `current-version`
 - `log`: this is a base-64 encoded form of the log lines used to generate the next release version
 - `release-notes`: this is a base-64 encoded form of the release notes based on git log parsed
+- `version-changed`: this boolean identifies a version change
 
 This should be all you need to add:
 
