@@ -72,7 +72,7 @@ runs:
       shell: bash
       run: |
         release_data=$(echo "${{ env.release_data }}" | base64 --decode)
-        assets=$(echo "$release_data" | jq -r '.assets[]')
+        assets=$(echo "$release_data" | jq -c '.assets[]')
         if [ $? -ne 0 ] || [ -z "$assets" ]; then
           echo "Failed to extract assets from release data: $release_data"
           exit 1
