@@ -84,7 +84,7 @@ runs:
       id: determine-asset-tag
       shell: bash
       run: |
-        assets = $(echo "${{ env.assets }}" | base64 --decode)
+        assets=$(echo "${{ env.assets }}" | base64 --decode)
         tag_name=$(echo "${{ env.tag_name }}")
         asset_tag="semrel-$tag_name-x86_64-unknown-linux-musl.tgz"
         good_assets=$(echo "$assets" | jq -r 'select(.name == "$asset_tag")')
@@ -100,8 +100,8 @@ runs:
       id: find-asset-id
       shell: bash
       run: |
-        asset_tag = $(echo "${{ env.asset_tag }}")
-        assets = $(echo "${{ env.assets }}" | base64 --decode)
+        asset_tag=$(echo "${{ env.asset_tag }}")
+        assets=$(echo "${{ env.assets }}" | base64 --decode)
         asset_id=$(echo "$assets" | jq -r --arg asset_tag "$asset_tag" 'select(.name == $asset_tag) | .id')
         if [ $? -ne 0 ] || [ -z "$asset_id" ]; then
           echo "Failed to find asset ID. Assets: $assets, Asset Tag: $asset_tag"
