@@ -148,7 +148,6 @@ jobs:
           mv x86_64-apple-darwin/semrel x86_64-apple-darwin/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-apple-darwin
           mv aarch64-unknown-linux-musl/semrel aarch64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-aarch64-unknown-linux-musl
           mv x86_64-unknown-linux-musl/semrel x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl
-          echo "Path: ${PATH}"
           cp x86_64-unknown-linux-musl/semrel-${{ needs.semrel.outputs.next-version }}-x86_64-unknown-linux-musl ~/.cargo/bin/semrel
 
       - name: Install tar
