@@ -66,6 +66,8 @@ runs:
           exit 1
         fi
         asset_tag="semrel-$tag_name-x86_64-unknown-linux-musl.tgz"
+        semrel_filename="semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl"
+        echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
         echo "asset_tag=$asset_tag" >> $GITHUB_ENV
 
     - name: Extract assets
@@ -80,8 +82,6 @@ runs:
         fi
         assets=$(echo "$assets" | base64 | tr -d '\n')
         echo "assets=$assets" >> $GITHUB_ENV
-        # Remove release_data
-        echo "release_data=" >> $GITHUB_ENV
 
     - name: Find asset ID and URL
       id: find-asset-id
@@ -97,16 +97,6 @@ runs:
         asset_url="https://api.github.com/repos/brianbruggeman/semrel/releases/assets/$asset_id"
         echo "asset_id=$asset_id" >> $GITHUB_ENV
         echo "asset_url=$asset_url" >> $GITHUB_ENV
-        # Remove assets and asset_tag
-        echo "asset_tag=" >> $GITHUB_ENV
-        echo "assets=" >> $GITHUB_ENV
-
-    - name: Set semrel filename
-      id: set-semrel-filename
-      shell: bash
-      run: |
-        semrel_filename="semrel-${{ env.tag_name }}-x86_64-unknown-linux-musl"
-        echo "semrel_filename=$semrel_filename" >> $GITHUB_ENV
 
     - name: Download and extract semrel
       shell: bash
@@ -120,9 +110,12 @@ runs:
       shell: bash
       run: |
         echo "asset_id=" >> $GITHUB_ENV
+        echo "asset_tag=" >> $GITHUB_ENV
         echo "asset_url=" >> $GITHUB_ENV
-        echo "tag_name=" >> $GITHUB_ENV
+        echo "assets=" >> $GITHUB_ENV
+        echo "release_data=" >> $GITHUB_ENV
         echo "semrel_filename=" >> $GITHUB_ENV
+        echo "tag_name=" >> $GITHUB_ENV
 
     - name: Set outputs
       id: semrel
