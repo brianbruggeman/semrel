@@ -6,6 +6,7 @@ use tracing_subscriber::EnvFilter;
 use semrel::*;
 
 #[derive(Debug, clap::Parser)]
+#[clap(version = env!("CARGO_PKG_VERSION"))]
 pub struct Opts {
     /// Path to the project root
     #[clap(long, default_value = ".", global = true, env = "PROJECT_PATH")]
