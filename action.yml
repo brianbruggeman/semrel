@@ -50,6 +50,7 @@ runs:
         url="https://api.github.com/repos/brianbruggeman/semrel/releases/latest"
         release_data=$(curl --silent $url)
         if [ $? -ne 0 ] || [ -z "$release_data" ]; then
+          set -x
           echo "Failed to fetch release data from URL: $url"
           exit 1
         fi
@@ -65,6 +66,7 @@ runs:
         release_data=$(echo "${{ env.release_data }}" | base64 --decode)
         tag_name=$(echo "$release_data" | jq -r .tag_name)
         if [ $? -ne 0 ] || [ -z "$tag_name" ]; then
+          set -x
           echo "Failed to extract tag name from release data: $release_data"
           exit 1
         fi
@@ -79,6 +81,7 @@ runs:
         release_data=$(echo "${{ env.release_data }}" | base64 --decode)
         assets=$(echo "$release_data" | jq -c '.assets[]')
         if [ $? -ne 0 ] || [ -z "$assets" ]; then
+          set -x
           echo "Failed to extract assets from release data: $release_data"
           exit 1
         fi
