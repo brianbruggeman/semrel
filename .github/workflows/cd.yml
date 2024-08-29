@@ -48,7 +48,7 @@ jobs:
             targets: ${{ matrix.target }}
       - name: Cache Cross
         id: cache-cross
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/cross
           key: ${{ matrix.os }}-cross
@@ -80,15 +80,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          target: ${{ matrix.target }}
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
       - name: Build
-        run: |
-          cargo build --release --target=${{ matrix.target }}
+        run: cargo build --release --target=${{ matrix.target }}
       - name: Archive
         uses: actions/upload-artifact@v4
         with:
@@ -114,7 +108,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Update manifest
-        run: semrel update
+        run: ./semrel update
 
       - name: Update lock
         run: cargo updaate
