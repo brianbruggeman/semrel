@@ -18,6 +18,12 @@ on:
         required: true
         default: 'main'
 
+permissions:
+  contents: write
+  packages: read
+  actions: read
+  pull-requests: read
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
