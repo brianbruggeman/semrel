@@ -93,7 +93,6 @@ impl ChangeLog {
             .into_iter()
             .filter(|(commit_type, _)| !ignored.iter().any(|s| commit_type.as_str().starts_with(s)))
             .map(|(commit_type, scopes)| CommitGroup::new(commit_type, scopes.into_iter().collect()))
-            .inspect(|group| println!("Commit group: {group:?}"))
             .collect();
         vec.sort();
         vec
