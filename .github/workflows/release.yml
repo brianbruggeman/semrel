@@ -1,4 +1,4 @@
-name: CD
+name: Release
 
 on:
   workflow_run:
@@ -48,7 +48,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - name: Build
-        run: cargo build --release --target=${{ matrix.target }}
+        run: cargo build --target=${{ matrix.target }}
       - name: Generate outputs
         id: semrel
         run: |
@@ -84,6 +84,72 @@ jobs:
           echo "manifest-path: ${{ steps.semrel.outputs.manifest-path }}"
           ./semrel show log
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-debug
+          path: target/${{ matrix.target }}/debug/semrel
+
+  commit:
+    needs: [semrel]
+    if: ${{ needs.semrel.outputs.version-changed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+      - name: Set permissions on artifacts
+        run: |
+          cp x86_64-unknown-linux-musl-debug/semrel ./semrel
+          chmod +x ./semrel
+
+      - name: Update manifest
+        run: ./semrel update
+
+      - name: Update lock
+        run: cargo update
+
+      - name: Setup git
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - name: Stage files
+        run: git add Cargo.toml Cargo.lock
+
+      - name: Create commit
+        run: |
+          # Create a nice log
+          printf "semrel: %s\n\n%s\n\n# Log\n%s\n" \
+          "$(./semrel show next)" \
+          "$(./semrel show notes)" \
+          "$(./semrel show log)" \
+          | git commit -F -
+
+      - name: Push commit
+        run: git push origin HEAD:main
+
+
+  native-build:
+    needs: [semrel, commit]
+    if: ${{ needs.semrel.outputs.version-changed == 'true' }}
+    strategy:
+      matrix:
+        include:
+        - target: aarch64-apple-darwin
+          os: macos-latest
+        - target: x86_64-unknown-linux-musl
+          os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target=${{ matrix.target }}
       - name: Archive
         uses: actions/upload-artifact@v4
         with:
@@ -91,16 +157,14 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   cross-build:
-    needs: [semrel]
+    needs: [semrel, commit]
     if: ${{ needs.semrel.outputs.version-changed == 'true' }}
     strategy:
       matrix:
         include:
-          - target: aarch64-apple-darwin
+          - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
-          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
 
     runs-on: ${{ matrix.os }}
@@ -133,7 +197,7 @@ jobs:
           path: target/${{ matrix.target }}/release/semrel
 
   release:
-    needs: [cross-build, semrel]
+    needs: [cross-build, native-build, semrel]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -147,33 +211,6 @@ jobs:
           chmod +x aarch64-unknown-linux-musl/semrel
           chmod +x x86_64-unknown-linux-musl/semrel
           cp x86_64-unknown-linux-musl/semrel ./semrel
-
-      - name: Update manifest
-        run: ./semrel update
-
-      - name: Update lock
-        run: cargo update
-
-      - name: Setup git
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-
-      - name: Stage files
-        run: git add Cargo.toml Cargo.lock
-
-      - name: Create commit
-        run: |
-          # Create a nice log
-          printf "semrel: %s\n\n%s\n\n# Log\n%s\n" \
-          "$(./semrel show next)" \
-          "$(./semrel show notes)" \
-          "$(./semrel show log)" \
-          | git commit -F -
-
-      - name: Push commit
-        run: git push origin HEAD:main
 
       - name: Create Release Notes
         run: ./semrel show notes > release-notes-$(./semrel show next).md
