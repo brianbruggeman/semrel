@@ -73,6 +73,6 @@ mod tests {
         std::fs::write(&manifest_path, manifest).unwrap();
         let path = temp_dir.path();
         let manifest = parse_manifest(path).unwrap();
-        assert_eq!(manifest.version().unwrap(), version.into());
+        assert_eq!(manifest.version().unwrap(), version);
     }
 }
