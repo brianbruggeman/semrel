@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Force a CD run'
+        description: 'Force a Release'
         type: boolean
       ref:
         description: 'Commit SHA to run the workflow on'
@@ -97,13 +97,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: actions/download-artifact@v4
+
       - name: Set permissions on artifacts
         run: |
           cp x86_64-unknown-linux-musl-debug/semrel ./semrel
           chmod +x ./semrel
 
-      - name: Update manifest
+      - name: Bump manifest version
         run: ./semrel update
 
       - name: Update lock
@@ -119,13 +121,7 @@ jobs:
         run: git add Cargo.toml Cargo.lock
 
       - name: Create commit
-        run: |
-          # Create a nice log
-          printf "semrel: %s\n\n%s\n\n# Log\n%s\n" \
-          "$(./semrel show next)" \
-          "$(./semrel show notes)" \
-          "$(./semrel show log)" \
-          | git commit -F -
+        run: printf "%s" "$(./semrel show release-commit)" | git commit -F -
 
       - name: Push commit
         run: git push origin HEAD:main
