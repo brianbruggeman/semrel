@@ -40,14 +40,12 @@ jobs:
           fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
       - name: Build
-        run: cargo build --target=x86_64-unknown-linux-musl
+        run: cargo build
       - name: Generate outputs
         id: semrel
         run: |
-            cp target/x86_64-unknown-linux-musl/release/semrel ./semrel
+            cp target/debug/semrel ./semrel
             current_version=$(./semrel show current)
             log=$(./semrel show log)
             next_version=$(./semrel show next)
@@ -81,8 +79,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: x86_64-unknown-linux-musl-debug
-          path: target/x86_64-unknown-linux-musl/debug/semrel
+          name: debug
+          path: target/debug/semrel
 
   commit:
     needs: [semrel]
@@ -97,7 +95,7 @@ jobs:
 
       - name: Set permissions on artifacts
         run: |
-          cp x86_64-unknown-linux-musl-debug/semrel ./semrel
+          cp debug/semrel ./semrel
           chmod +x ./semrel
 
       - name: Bump manifest version
