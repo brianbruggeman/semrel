@@ -452,17 +452,17 @@ mod tests {
 
         pub fn build(&self) -> Result<(), RepositoryError> {
             match self.type_ {
-                TestRepoType::Empty => {},
+                TestRepoType::Empty => {}
                 TestRepoType::SingleCommit => self.init()?,
                 TestRepoType::MultipleCommits => {
                     self.init()?;
                     self.build_multiple_commits()?;
-                },
+                }
                 TestRepoType::BranchedMultipleCommits => {
                     self.init()?;
                     self.test_repo.branch("add_library")?;
                     self.build_multiple_commits()?
-                },
+                }
             };
             Ok(())
         }
@@ -488,18 +488,24 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Update dependencies
-            self.test_repo.add_file("foo.rs", "fn add(i: i32, j: i32) -> i32 {\n    i + j\n}").expect("Failed to add file");
+            self.test_repo
+                .add_file("foo.rs", "fn add(i: i32, j: i32) -> i32 {\n    i + j\n}")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: create add").unwrap();
 
             // Add foo.rs
-            self.test_repo.add_file("foo.rs", "fn add(i: i32, j: i32) -> i32 {\n    i + j\n}").expect("Failed to add file");
+            self.test_repo
+                .add_file("foo.rs", "fn add(i: i32, j: i32) -> i32 {\n    i + j\n}")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: create add").unwrap();
 
             // insert small sleep delay
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Update lib to include foo
-            self.test_repo.add_file("lib.rs", "mod foo;\n\npub use foo::*;\n").expect("Failed to add file");
+            self.test_repo
+                .add_file("lib.rs", "mod foo;\n\npub use foo::*;\n")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: use add").unwrap();
 
             // insert small sleep delay
@@ -512,21 +518,27 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Add main.py
-            self.test_repo.add_file("main.py", "print('Hello, world!')").expect("Failed to add file");
+            self.test_repo
+                .add_file("main.py", "print('Hello, world!')")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: create library").unwrap();
 
             // insert small sleep delay
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Add utils.py
-            self.test_repo.add_file("utils.py", "def add(i, j):\n    return i + j").expect("Failed to add file");
+            self.test_repo
+                .add_file("utils.py", "def add(i, j):\n    return i + j")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: create add").unwrap();
 
             // insert small sleep delay
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Update main.py to use utils
-            self.test_repo.add_file("main.py", "from utils import add\n\nprint(add(1, 2))").expect("Failed to add file");
+            self.test_repo
+                .add_file("main.py", "from utils import add\n\nprint(add(1, 2))")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: use add").unwrap();
 
             // insert small sleep delay
@@ -539,21 +551,27 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Add main.js
-            self.test_repo.add_file("main.js", "console.log('Hello, world!');").expect("Failed to add file");
+            self.test_repo
+                .add_file("main.js", "console.log('Hello, world!');")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: create library").unwrap();
 
             // insert small sleep delay
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Add utils.js
-            self.test_repo.add_file("utils.js", "function add(i, j) { return i + j; }").expect("Failed to add file");
+            self.test_repo
+                .add_file("utils.js", "function add(i, j) { return i + j; }")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: create add").unwrap();
 
             // insert small sleep delay
             std::thread::sleep(std::time::Duration::from_millis(10));
 
             // Update main.js to use utils
-            self.test_repo.add_file("main.js", "const { add } = require('./utils');\n\nconsole.log(add(1, 2));").expect("Failed to add file");
+            self.test_repo
+                .add_file("main.js", "const { add } = require('./utils');\n\nconsole.log(add(1, 2));")
+                .expect("Failed to add file");
             self.test_repo.commit("fix: use add").unwrap();
 
             // insert small sleep delay
@@ -597,39 +615,44 @@ mod tests {
         }
 
         fn init_rust(&self) -> Result<(), RepositoryError> {
-            let cargo_toml = textwrap::dedent(r#"
+            let cargo_toml = textwrap::dedent(
+                r#"
                 [package]
                 name = "test"
                 version = "0.1.0"
-                "#);
+                "#,
+            );
             self.test_repo.add_file("Cargo.toml", cargo_toml)?;
             self.test_repo.commit(TestProject::FIRST_COMMIT_MESSAGE)?;
             Ok(())
         }
 
         fn init_python(&self) -> Result<(), RepositoryError> {
-            let pyproject_toml = textwrap::dedent(r#"
+            let pyproject_toml = textwrap::dedent(
+                r#"
                 [tool.poetry]
                 name = "test"
                 version = "0.1.0"
-                "#);
+                "#,
+            );
             self.test_repo.add_file("pyproject.toml", pyproject_toml)?;
             self.test_repo.commit(TestProject::FIRST_COMMIT_MESSAGE)?;
             Ok(())
         }
 
         fn init_javascript(&self) -> Result<(), RepositoryError> {
-            let package_json = textwrap::dedent(r#"
+            let package_json = textwrap::dedent(
+                r#"
                 {
                     "name": "test",
                     "version": "0.1.0"
                 }
-                "#);
+                "#,
+            );
             self.test_repo.add_file("package.json", package_json)?;
             self.test_repo.commit(TestProject::FIRST_COMMIT_MESSAGE)?;
             Ok(())
         }
-
     }
 
     struct TestRepo {
@@ -726,7 +749,7 @@ mod tests {
                                     println!("Failed to checkout tree: {why}");
                                     self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
                                     println!("Switched to existing branch '{}'", branch_name);
-                                },
+                                }
                             }
                         }
                     }
@@ -877,15 +900,12 @@ mod tests {
     #[case::empty_rs_patch(TestRepoLanguage::Rust, TestRepoType::Empty, crate::BumpRule::Patch, "")]
     #[case::empty_py_minor(TestRepoLanguage::Python, TestRepoType::Empty, crate::BumpRule::Minor, "")]
     #[case::empty_js_major(TestRepoLanguage::JavaScript, TestRepoType::Empty, crate::BumpRule::Major, "")]
-
     #[case::single_rs_patch(TestRepoLanguage::Rust, TestRepoType::SingleCommit, crate::BumpRule::Patch, "0.1.0")]
     #[case::single_py_minor(TestRepoLanguage::Python, TestRepoType::SingleCommit, crate::BumpRule::Minor, "0.1.0")]
     #[case::single_js_major(TestRepoLanguage::JavaScript, TestRepoType::SingleCommit, crate::BumpRule::Major, "0.1.0")]
-
     #[case::multi_rs_patch(TestRepoLanguage::Rust, TestRepoType::MultipleCommits, crate::BumpRule::Patch, "0.1.1")]
     #[case::multi_py_minor(TestRepoLanguage::Python, TestRepoType::MultipleCommits, crate::BumpRule::Minor, "0.2.0")]
     #[case::multi_js_major(TestRepoLanguage::JavaScript, TestRepoType::MultipleCommits, crate::BumpRule::Major, "1.0.0")]
-
     #[case::branching_rs_patch(TestRepoLanguage::Rust, TestRepoType::BranchedMultipleCommits, crate::BumpRule::Patch, "0.1.1")]
     #[case::branching_py_minor(TestRepoLanguage::Python, TestRepoType::BranchedMultipleCommits, crate::BumpRule::Minor, "0.2.0")]
     #[case::branching_js_major(TestRepoLanguage::JavaScript, TestRepoType::BranchedMultipleCommits, crate::BumpRule::Major, "1.0.0")]
@@ -893,10 +913,7 @@ mod tests {
     fn test_version_bumping(#[case] language: TestRepoLanguage, #[case] type_: TestRepoType, #[case] bump_rule: crate::BumpRule, #[case] expected_version: impl AsRef<str>) {
         let test_repo = TestRepo::new();
         let path = test_repo.path().canonicalize().expect("Could not get full path");
-        let rules = vec![
-            (crate::CommitType::Chore, crate::BumpRule::Patch),
-            (crate::CommitType::Fix, bump_rule),
-        ];
+        let rules = vec![(crate::CommitType::Chore, crate::BumpRule::Patch), (crate::CommitType::Fix, bump_rule)];
         let project = TestProject::new(path.clone(), &test_repo, language, type_);
         project.build().expect("Failed to init project");
         match type_ {
@@ -917,7 +934,11 @@ mod tests {
                 let log_messages = project.generate_pretty_log_messages(&rules).expect("Could not build repo");
                 assert_eq!(log.len(), 4, "{}", "{log_messages}");
                 assert_eq!(log.first().expect("Could not find log"), "fix: use add", "Recent commit does not match: {log_messages}");
-                assert_eq!(log.last().expect("Could not find log"), TestProject::FIRST_COMMIT_MESSAGE, "Oldest commit does not match: {log_messages}");
+                assert_eq!(
+                    log.last().expect("Could not find log"),
+                    TestProject::FIRST_COMMIT_MESSAGE,
+                    "Oldest commit does not match: {log_messages}"
+                );
                 assert_eq!(project.generate_next_version(&rules).expect("Could not build repo"), expected_version.as_ref(), "{log_messages}");
             }
         }

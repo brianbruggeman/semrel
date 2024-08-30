@@ -110,12 +110,13 @@ impl std::ops::Add<BumpRule> for SimpleVersion {
 }
 
 impl<S> PartialEq<S> for SimpleVersion
-where S: AsRef<str>
+where
+    S: AsRef<str>,
 {
     fn eq(&self, other: &S) -> bool {
         match SimpleVersion::from_str(other.as_ref()) {
             Ok(v) => &v == self,
-            Err(_why) => false
+            Err(_why) => false,
         }
     }
 }
