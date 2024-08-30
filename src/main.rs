@@ -57,6 +57,8 @@ pub enum ShowOpts {
     Rules,
     /// Show the configuration
     Config,
+    /// Show suggested release commit message
+    ReleaseCommit,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -253,9 +255,14 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
             Ok(())
         }
         ShowOpts::Log => {
-            for item in &cli_data.changelog.changes {
-                println!("{} {}", item.id, item.message())
-            }
+            // Do not show these because they are automatically generated and very verbose
+            let ignored = ["semrel"];
+            let _ = &cli_data
+                .changelog
+                .changes
+                .iter()
+                .filter(|item| !ignored.iter().any(|s| item.commit_type().as_str().starts_with(s)))
+                .for_each(|item| println!("{} {}", item.id, item.message()));
             Ok(())
         }
         ShowOpts::Next => {
@@ -264,6 +271,21 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
         }
         ShowOpts::Current => {
             println!("{}", cli_data.current_version);
+            Ok(())
+        }
+        ShowOpts::ReleaseCommit => {
+            let ignored = ["semrel"];
+            let release_notes = &cli_data.changelog.release_notes(&cli_data.rules);
+            let log = &cli_data
+                .changelog
+                .changes
+                .iter()
+                .filter(|item| !ignored.iter().any(|s| item.commit_type().as_str().starts_with(s)))
+                .map(|item| format!("{} {}", item.id, item.message()))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let next_version = &cli_data.new_version;
+            println!("semrel: {}\n\n{}\n\n# Log\n{}\n", next_version, release_notes, log);
             Ok(())
         }
     }
