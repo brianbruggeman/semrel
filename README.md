@@ -102,14 +102,33 @@ Show information
 Usage: semrel show [OPTIONS] <COMMAND>
 
 Commands:
-  current   Show only the current version
-  next      Show the next version
-  log       Show the changelog
-  notes     Show the release notes
-  manifest  Show the manifest path
-  rules     Show the rules
-  config    Show the configuration
-  help      Print this message or the help of the given subcommand(s)
+  current         Show only the current version
+  next            Show the next version
+  log             Show the changelog
+  notes           Show the release notes
+  manifest        Show the manifest path
+  rules           Show the rules
+  config          Show the configuration
+  release-commit  Show suggested release commit message
+  help            Print this message or the help of the given subcommand(s)
+
+Options:
+      --path <PATH>                Path to the project root [env: PROJECT_PATH=] [default: .]
+      --rule [<RULE>...]           Custom rules for commit types (can be comma separated) [env: SEMREL_RULES=]
+  -b, --bump <BUMP>                Short circuit for bumping the version [env: SEMREL_BUMP=] [possible values: major, minor, patch, none]
+      --config-path <CONFIG_PATH>  Specify the configuration path [env: SEMREL_CONFIG_PATH=]
+  -h, --help                       Print help
+```
+
+```bash
+$ semrel config
+Config subcommand
+
+Usage: semrel config [OPTIONS] <COMMAND>
+
+Commands:
+  edit  Edit the current configuration
+  help  Print this message or the help of the given subcommand(s)
 
 Options:
       --path <PATH>                Path to the project root [env: PROJECT_PATH=] [default: .]
