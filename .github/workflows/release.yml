@@ -33,12 +33,7 @@ jobs:
       release-notes: ${{ steps.semrel.outputs.release-notes }}
       version-changed: ${{ steps.semrel.outputs.version-changed }}
       manifest-path: ${{ steps.semrel.outputs.manifest-path }}
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,13 +41,13 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-unknown-linux-musl
       - name: Build
-        run: cargo build --target=${{ matrix.target }}
+        run: cargo build --target=x86_64-unknown-linux-musl
       - name: Generate outputs
         id: semrel
         run: |
-            cp target/${{ matrix.target }}/release/semrel ./semrel
+            cp target/x86_64-unknown-linux-musl/release/semrel ./semrel
             current_version=$(./semrel show current)
             log=$(./semrel show log)
             next_version=$(./semrel show next)
@@ -86,8 +81,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-debug
-          path: target/${{ matrix.target }}/debug/semrel
+          name: x86_64-unknown-linux-musl-debug
+          path: target/x86_64-unknown-linux-musl/debug/semrel
 
   commit:
     needs: [semrel]
@@ -125,7 +120,6 @@ jobs:
 
       - name: Push commit
         run: git push origin HEAD:main
-
 
   native-build:
     needs: [semrel, commit]
