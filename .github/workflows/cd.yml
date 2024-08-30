@@ -67,7 +67,7 @@ jobs:
           echo "current-version: ${{ steps.semrel.outputs.current-version }}"
           echo "next-version: ${{ steps.semrel.outputs.next-version }}"
           echo "manifest-path: ${{ steps.semrel.outputs.manifest-path }}"
-          semrel show log
+          ./semrel show log
 
       - name: Archive
         uses: actions/upload-artifact@v4
