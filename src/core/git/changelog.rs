@@ -325,9 +325,15 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
         RepositoryError::InvalidRepository(why.to_string())
     })?;
 
-    // Set time as sorter
-    revwalk.set_sorting(git2::Sort::TIME).map_err(|why| {
-        tracing::error!("Failed to push head: {why}");
+    // Use topological sort
+    revwalk.set_sorting(git2::Sort::TOPOLOGICAL).map_err(|why| {
+        tracing::error!("Failed to sort repo: {why}");
+        RepositoryError::InvalidRepository(why.to_string())
+    })?;
+
+    // Include merging branches
+    revwalk.simplify_first_parent().map_err(|why| {
+        tracing::error!("Failed to simplify: {why}");
         RepositoryError::InvalidRepository(why.to_string())
     })?;
 
@@ -401,35 +407,6 @@ fn compute_relative_path(repo_path: impl AsRef<Path>, project_path: impl AsRef<P
     relative_path
 }
 
-// fn compute_relative_path(repo_path: &Path, project_path: &Path) -> PathBuf {
-//     let mut relative_path = PathBuf::new();
-//     let repo_count = repo_path.components().count();
-//     let path_count = project_path.components().count();
-//     let mut index = 0;
-//     for (repo_comp, project_comp) in repo_path.components().zip(project_path.components()) {
-//         if repo_comp != project_comp {
-//             break;
-//         }
-//         index += 1;
-//     }
-
-//     if index == 0 {
-//         project_path.to_path_buf()
-//     } else {
-//         if index == repo_count && index == path_count {
-//             return PathBuf::new();
-//         }
-
-//         let uncommon_components = project_path
-//             .components()
-//             .skip(index)
-//             .map(|c| c.as_os_str().to_str().unwrap())
-//             .collect::<Vec<_>>();
-//         relative_path.push(uncommon_components.join("/"));
-//         relative_path
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,6 +414,223 @@ mod tests {
     use git2::{Oid, Repository, Signature};
     use rstest::rstest;
     use tempfile::TempDir;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum TestRepoLanguage {
+        Rust,
+        Python,
+        JavaScript,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum TestRepoType {
+        Empty,
+        SingleCommit,
+        MultipleCommits,
+        BranchedMultipleCommits,
+    }
+
+    // Factory for building test projects
+    struct TestProject<'a> {
+        path: PathBuf,
+        test_repo: &'a TestRepo,
+        language: TestRepoLanguage,
+        type_: TestRepoType,
+    }
+
+    impl<'a> TestProject<'a> {
+        const FIRST_COMMIT_MESSAGE: &'static str = "First commit";
+
+        pub fn new(path: impl AsRef<Path>, repo: &'a TestRepo, language: TestRepoLanguage, type_: TestRepoType) -> Self {
+            Self {
+                path: path.as_ref().to_owned(),
+                test_repo: repo,
+                language,
+                type_,
+            }
+        }
+
+        pub fn build(&self) -> Result<(), RepositoryError> {
+            match self.type_ {
+                TestRepoType::Empty => {},
+                TestRepoType::SingleCommit => self.init()?,
+                TestRepoType::MultipleCommits => {
+                    self.init()?;
+                    self.build_multiple_commits()?;
+                },
+                TestRepoType::BranchedMultipleCommits => {
+                    self.init()?;
+                    self.test_repo.branch("add_library")?;
+                    self.build_multiple_commits()?
+                },
+            };
+            Ok(())
+        }
+
+        fn build_multiple_commits(&self) -> Result<(), RepositoryError> {
+            match self.language {
+                TestRepoLanguage::Rust => self.build_multiple_commits_rust()?,
+                TestRepoLanguage::Python => self.build_multiple_commits_python()?,
+                TestRepoLanguage::JavaScript => self.build_multiple_commits_javascript()?,
+            }
+            Ok(())
+        }
+
+        fn build_multiple_commits_rust(&self) -> Result<(), RepositoryError> {
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Add lib.rs
+            self.test_repo.add_file("lib.rs", "Hello, world!").expect("Failed to add file");
+            self.test_repo.commit("fix: create library").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Update dependencies
+            self.test_repo.add_file("foo.rs", "fn add(i: i32, j: i32) -> i32 {\n    i + j\n}").expect("Failed to add file");
+            self.test_repo.commit("fix: create add").unwrap();
+
+            // Add foo.rs
+            self.test_repo.add_file("foo.rs", "fn add(i: i32, j: i32) -> i32 {\n    i + j\n}").expect("Failed to add file");
+            self.test_repo.commit("fix: create add").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Update lib to include foo
+            self.test_repo.add_file("lib.rs", "mod foo;\n\npub use foo::*;\n").expect("Failed to add file");
+            self.test_repo.commit("fix: use add").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            Ok(())
+        }
+
+        fn build_multiple_commits_python(&self) -> Result<(), RepositoryError> {
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Add main.py
+            self.test_repo.add_file("main.py", "print('Hello, world!')").expect("Failed to add file");
+            self.test_repo.commit("fix: create library").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Add utils.py
+            self.test_repo.add_file("utils.py", "def add(i, j):\n    return i + j").expect("Failed to add file");
+            self.test_repo.commit("fix: create add").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Update main.py to use utils
+            self.test_repo.add_file("main.py", "from utils import add\n\nprint(add(1, 2))").expect("Failed to add file");
+            self.test_repo.commit("fix: use add").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            Ok(())
+        }
+
+        fn build_multiple_commits_javascript(&self) -> Result<(), RepositoryError> {
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Add main.js
+            self.test_repo.add_file("main.js", "console.log('Hello, world!');").expect("Failed to add file");
+            self.test_repo.commit("fix: create library").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Add utils.js
+            self.test_repo.add_file("utils.js", "function add(i, j) { return i + j; }").expect("Failed to add file");
+            self.test_repo.commit("fix: create add").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            // Update main.js to use utils
+            self.test_repo.add_file("main.js", "const { add } = require('./utils');\n\nconsole.log(add(1, 2));").expect("Failed to add file");
+            self.test_repo.commit("fix: use add").unwrap();
+
+            // insert small sleep delay
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            Ok(())
+        }
+
+        fn generate_changelog(&self, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
+            let manifest_path = crate::find_manifest(&self.path)?;
+            get_changelog(&self.test_repo.repo, manifest_path, &rules)
+        }
+
+        fn generate_next_version(&self, rules: &[(CommitType, BumpRule)]) -> Result<SimpleVersion, RepositoryError> {
+            let manifest_path = crate::find_manifest(&self.path)?;
+            let changelog = get_changelog(&self.test_repo.repo, manifest_path, &rules)?;
+            Ok(changelog.next_version(&rules))
+        }
+
+        fn generate_log_messages(&self, rules: &[(CommitType, BumpRule)]) -> Result<Vec<String>, RepositoryError> {
+            let manifest_path = crate::find_manifest(&self.path)?;
+            let changelog = get_changelog(&self.test_repo.repo, manifest_path, &rules)?;
+            let log_messages = changelog.changes.iter().map(|v| v.commit.message()).collect::<Vec<_>>();
+            Ok(log_messages)
+        }
+
+        fn generate_pretty_log_messages(&self, rules: &[(CommitType, BumpRule)]) -> Result<String, RepositoryError> {
+            let messages = self.generate_log_messages(rules)?;
+            let mut final_message = "\n".to_string();
+            for (index, message) in messages.iter().enumerate() {
+                final_message.push_str(&format!("{}: {}\n", index, message));
+            }
+            Ok(final_message)
+        }
+
+        fn init(&self) -> Result<(), RepositoryError> {
+            match self.language {
+                TestRepoLanguage::Rust => self.init_rust(),
+                TestRepoLanguage::Python => self.init_python(),
+                TestRepoLanguage::JavaScript => self.init_javascript(),
+            }
+        }
+
+        fn init_rust(&self) -> Result<(), RepositoryError> {
+            let cargo_toml = textwrap::dedent(r#"
+                [package]
+                name = "test"
+                version = "0.1.0"
+                "#);
+            self.test_repo.add_file("Cargo.toml", cargo_toml)?;
+            self.test_repo.commit(TestProject::FIRST_COMMIT_MESSAGE)?;
+            Ok(())
+        }
+
+        fn init_python(&self) -> Result<(), RepositoryError> {
+            let pyproject_toml = textwrap::dedent(r#"
+                [tool.poetry]
+                name = "test"
+                version = "0.1.0"
+                "#);
+            self.test_repo.add_file("pyproject.toml", pyproject_toml)?;
+            self.test_repo.commit(TestProject::FIRST_COMMIT_MESSAGE)?;
+            Ok(())
+        }
+
+        fn init_javascript(&self) -> Result<(), RepositoryError> {
+            let package_json = textwrap::dedent(r#"
+                {
+                    "name": "test",
+                    "version": "0.1.0"
+                }
+                "#);
+            self.test_repo.add_file("package.json", package_json)?;
+            self.test_repo.commit(TestProject::FIRST_COMMIT_MESSAGE)?;
+            Ok(())
+        }
+
+    }
 
     struct TestRepo {
         temp_dir: TempDir,
@@ -456,6 +650,7 @@ mod tests {
             let temp_dir = TempDir::new().unwrap();
             let temp_path = temp_dir.path().join("repo");
             let repo = Repository::init(&temp_path).unwrap();
+            println!("Created repository here: {}", &temp_path.canonicalize().unwrap().display());
             TestRepo { temp_dir, repo }
         }
 
@@ -490,16 +685,76 @@ mod tests {
                 .map_err(|_| RepositoryError::InvalidRepositoryPath(self.path().to_path_buf()))
         }
 
-        fn add_file(&self, path: &str, content: &str) -> Result<(), RepositoryError> {
+        fn add_file(&self, path: impl AsRef<Path>, content: impl AsRef<str>) -> Result<(), RepositoryError> {
             use std::fs::File;
             use std::io::Write;
-            let file_path = self.path().join(path);
+            let file_path = self.path().join(path.as_ref());
             let mut file = File::create(&file_path).unwrap();
-            file.write_all(content.as_bytes()).unwrap();
+            file.write_all(content.as_ref().as_bytes()).unwrap();
 
             let mut index = self.repo.index().unwrap();
-            index.add_path(Path::new(path)).unwrap();
-            index.write().unwrap();
+            index.add_path(path.as_ref()).unwrap();
+            index.write_tree().unwrap();
+
+            Ok(())
+        }
+
+        #[allow(dead_code)]
+        fn branch(&self, name: impl AsRef<str>) -> Result<(), RepositoryError> {
+            let branch_name = name.as_ref();
+            println!("Switching to branch '{}'", branch_name); // Debug message
+            match self.repo.find_branch(branch_name, git2::BranchType::Local) {
+                Ok(_) => {
+                    // Branch exists, so check it out
+                    let obj = self.repo.revparse_single(&format!("refs/heads/{}", branch_name)).unwrap();
+                    let mut checkout_builder = git2::build::CheckoutBuilder::new();
+                    checkout_builder.force();
+                    match self.repo.checkout_tree(&obj, None) {
+                        Ok(_) => {
+                            self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
+                            println!("Switched to existing branch '{}'", branch_name);
+                        }
+                        Err(why) => {
+                            println!("Failed to checkout tree: {why}");
+                            checkout_builder.remove_untracked(true);
+                            match self.repo.checkout_tree(&obj, Some(&mut checkout_builder)) {
+                                Ok(_) => {
+                                    self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
+                                    println!("Switched to existing branch '{}'", branch_name);
+                                }
+                                Err(why) => {
+                                    println!("Failed to checkout tree: {why}");
+                                    self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
+                                    println!("Switched to existing branch '{}'", branch_name);
+                                },
+                            }
+                        }
+                    }
+                    self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
+                    println!("Switched to existing branch '{}'", branch_name);
+                }
+                Err(_) => {
+                    // Branch does not exist, so create it
+                    let head_ref = self.repo.head().unwrap();
+                    let head_commit = head_ref.peel_to_commit().unwrap();
+                    let _branch = self.repo.branch(branch_name, &head_commit, false).unwrap();
+
+                    // Checkout the newly created branch
+                    let obj = self.repo.revparse_single(&format!("refs/heads/{}", branch_name)).unwrap();
+                    let mut checkout_builder = git2::build::CheckoutBuilder::new();
+                    checkout_builder.force(); // Force checkout to overcome conflicts
+                    match self.repo.checkout_tree(&obj, Some(&mut checkout_builder)) {
+                        Ok(_) => println!("Created and switched to new branch '{}'", branch_name),
+                        Err(e) => {
+                            println!("Failed to checkout tree: {e}");
+                            checkout_builder.remove_untracked(true);
+                            self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
+                            println!("Switched to existing branch '{}'", branch_name);
+                        }
+                    }
+                    self.repo.set_head(&format!("refs/heads/{}", branch_name)).unwrap();
+                }
+            }
 
             Ok(())
         }
@@ -616,5 +871,55 @@ mod tests {
         let expected = Path::new(expected);
         let result = compute_relative_path(repo_path, project_path);
         assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case::empty_rs_patch(TestRepoLanguage::Rust, TestRepoType::Empty, crate::BumpRule::Patch, "")]
+    #[case::empty_py_minor(TestRepoLanguage::Python, TestRepoType::Empty, crate::BumpRule::Minor, "")]
+    #[case::empty_js_major(TestRepoLanguage::JavaScript, TestRepoType::Empty, crate::BumpRule::Major, "")]
+
+    #[case::single_rs_patch(TestRepoLanguage::Rust, TestRepoType::SingleCommit, crate::BumpRule::Patch, "0.1.0")]
+    #[case::single_py_minor(TestRepoLanguage::Python, TestRepoType::SingleCommit, crate::BumpRule::Minor, "0.1.0")]
+    #[case::single_js_major(TestRepoLanguage::JavaScript, TestRepoType::SingleCommit, crate::BumpRule::Major, "0.1.0")]
+
+    #[case::multi_rs_patch(TestRepoLanguage::Rust, TestRepoType::MultipleCommits, crate::BumpRule::Patch, "0.1.1")]
+    #[case::multi_py_minor(TestRepoLanguage::Python, TestRepoType::MultipleCommits, crate::BumpRule::Minor, "0.2.0")]
+    #[case::multi_js_major(TestRepoLanguage::JavaScript, TestRepoType::MultipleCommits, crate::BumpRule::Major, "1.0.0")]
+
+    #[case::branching_rs_patch(TestRepoLanguage::Rust, TestRepoType::BranchedMultipleCommits, crate::BumpRule::Patch, "0.1.1")]
+    #[case::branching_py_minor(TestRepoLanguage::Python, TestRepoType::BranchedMultipleCommits, crate::BumpRule::Minor, "0.2.0")]
+    #[case::branching_js_major(TestRepoLanguage::JavaScript, TestRepoType::BranchedMultipleCommits, crate::BumpRule::Major, "1.0.0")]
+
+    fn test_version_bumping(#[case] language: TestRepoLanguage, #[case] type_: TestRepoType, #[case] bump_rule: crate::BumpRule, #[case] expected_version: impl AsRef<str>) {
+        let test_repo = TestRepo::new();
+        let path = test_repo.path().canonicalize().expect("Could not get full path");
+        let rules = vec![
+            (crate::CommitType::Chore, crate::BumpRule::Patch),
+            (crate::CommitType::Fix, bump_rule),
+        ];
+        let project = TestProject::new(path.clone(), &test_repo, language, type_);
+        project.build().expect("Failed to init project");
+        match type_ {
+            TestRepoType::Empty => {
+                if let Ok(_changelog) = project.generate_changelog(&rules) {
+                    assert!(false, "changelog should fail with empty repo");
+                }
+            }
+            TestRepoType::SingleCommit => {
+                let log = project.generate_log_messages(&rules).expect("Could not build repo");
+                let log_messages = project.generate_pretty_log_messages(&rules).expect("Could not build repo");
+                assert_eq!(log.len(), 1, "{}", "{log_messages}");
+                assert_eq!(log.last().expect("Could not find log"), TestProject::FIRST_COMMIT_MESSAGE, "Commit does not match: {log_messages}");
+                assert_eq!(project.generate_next_version(&rules).expect("Could not build repo"), expected_version.as_ref(), "{log_messages}");
+            }
+            TestRepoType::MultipleCommits | TestRepoType::BranchedMultipleCommits => {
+                let log = project.generate_log_messages(&rules).expect("Could not build repo");
+                let log_messages = project.generate_pretty_log_messages(&rules).expect("Could not build repo");
+                assert_eq!(log.len(), 4, "{}", "{log_messages}");
+                assert_eq!(log.first().expect("Could not find log"), "fix: use add", "Recent commit does not match: {log_messages}");
+                assert_eq!(log.last().expect("Could not find log"), TestProject::FIRST_COMMIT_MESSAGE, "Oldest commit does not match: {log_messages}");
+                assert_eq!(project.generate_next_version(&rules).expect("Could not build repo"), expected_version.as_ref(), "{log_messages}");
+            }
+        }
     }
 }
