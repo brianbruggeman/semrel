@@ -34,7 +34,7 @@ version = "2.7.10"
 features = ["grammar-extras"]
 
 [dependencies.serde]
-version = "1.0.202"
+version = "1.0.210"
 features = ["derive"]
 
 [dependencies.serde_json]
