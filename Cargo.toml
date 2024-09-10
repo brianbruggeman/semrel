@@ -30,7 +30,7 @@ version = "2.7.10"
 features = ["pretty-print"]
 
 [dependencies.pest_derive]
-version = "2.7.10"
+version = "2.7.12"
 features = ["grammar-extras"]
 
 [dependencies.serde]
