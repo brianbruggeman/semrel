@@ -65,6 +65,26 @@ To use, then:
   run: printf "%s" "${{ needs.semrel.outputs.release-notes }}" | base64 --decode > release-notes-${{ needs.semrel.outputs.next-version }}.md
 ```
 
+In CI, if you use a separate branch, you'll want to use a branch:
+
+```yaml
+- name: Run semrel
+  id: semrel
+  uses: brianbruggeman/semrel@main
+  with:
+    branch: {{ github.ref_name }}
+```
+
+If you want to control the subpath within a repository, you can specify the path:
+
+```yaml
+- name: Run semrel
+  id: semrel
+  uses: brianbruggeman/semrel@main
+  with:
+    path: './to/some/sub-project'
+```
+
 If you want to control the path to the project, assuming a multi-project repo, use:
 
 ```yaml
