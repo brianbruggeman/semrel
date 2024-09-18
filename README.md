@@ -72,7 +72,7 @@ In CI, if you use a separate branch, you'll want to use a branch:
   id: semrel
   uses: brianbruggeman/semrel@main
   with:
-    branch: {{ github.ref_name }}
+    branch: ${{ github.ref_name }}
 ```
 
 If you want to control the subpath within a repository, you can specify the path:
