@@ -41,10 +41,13 @@ The github action will install semrel into the current (`.`) path for your githu
 - `release-notes`: this is a base-64 encoded form of the release notes based on git log parsed
 - `version-changed`: this boolean identifies a version change
 
-This should be all you need to add:
+This should be all you need to add.  Note that you need to fetch the full history for the repository, otherwise the git log will not be able to find the commits and semrel will not find the previous version.
 
 ```yaml
 - uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+
 - name: Run semrel
   id: semrel
   uses: brianbruggeman/semrel@main
@@ -65,17 +68,23 @@ To use, then:
   run: printf "%s" "${{ needs.semrel.outputs.release-notes }}" | base64 --decode > release-notes-${{ needs.semrel.outputs.next-version }}.md
 ```
 
-In CI, if you use a separate branch, you'll want to use a branch:
+In CI/CD, you _can_ ask semrel to checkout the full depth.  But there are some edge cases:
+
+    - When you checkout it removes the local filesystem; any changes you made locally will be lost.
+    - By default, semrel does not checkout any files.
+    - Generally this is most useful at the start of a workflow, but you can use it at any time.
 
 ```yaml
 - name: Run semrel
   id: semrel
   uses: brianbruggeman/semrel@main
   with:
-    branch: ${{ github.ref_name }}
+    branch: ${{ github.head_ref || github.ref_name }}
 ```
 
-If you want to control the subpath within a repository, you can specify the path:
+If you have a subproject or follow a monorepo structure, you may want to control which
+path is searched for updates.  You can specify the path.  Semrel expects that the path
+contains a manifest file (e.g. Cargo.toml, package.json, pyproject.toml, etc.):
 
 ```yaml
 - name: Run semrel
@@ -83,16 +92,6 @@ If you want to control the subpath within a repository, you can specify the path
   uses: brianbruggeman/semrel@main
   with:
     path: './to/some/sub-project'
-```
-
-If you want to control the path to the project, assuming a multi-project repo, use:
-
-```yaml
-- name: Run semrel
-  id: semrel
-  uses: brianbruggeman/semrel@main
-  with:
-    path: './to/some/project'
 ```
 
 ### Command-line
