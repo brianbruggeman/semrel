@@ -5,7 +5,7 @@ inputs:
   branch:
     description: 'Branch to check out'
     required: false
-    default: 'main'
+    default: ''
   path:
     description: 'Path to project files'
     required: false
@@ -33,6 +33,7 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout code
+      if: ${{ inputs.branch != '' }}
       uses: actions/checkout@v4
       with:
         ref: ${{ inputs.branch }}
