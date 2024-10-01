@@ -36,10 +36,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.0
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
-
       - uses: rustsec/audit-check@v1.4.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
