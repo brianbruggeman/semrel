@@ -36,6 +36,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.0
 
-      - uses: rustsec/audit-check@v1.4.1
+      - uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
