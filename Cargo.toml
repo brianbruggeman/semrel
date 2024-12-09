@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.93"
-cargo_toml = "0.20.5"
+cargo_toml = "0.21.0"
 chrono = "0.4.38"
 dirs = "5.0.1"
 dotenvy = "0.15.7"
