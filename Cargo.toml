@@ -28,7 +28,7 @@ version = "2.7.15"
 features = ["pretty-print"]
 
 [dependencies.pest_derive]
-version = "2.7.13"
+version = "2.7.15"
 features = ["grammar-extras"]
 
 [dependencies.serde]
