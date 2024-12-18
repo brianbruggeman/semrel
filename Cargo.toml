@@ -16,7 +16,7 @@ thiserror = "2.0.7"
 tracing = "0.1.41"
 
 [dependencies.clap]
-version = "4.5.21"
+version = "4.5.23"
 features = ["derive", "env"]
 
 [dependencies.git2]
