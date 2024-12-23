@@ -4,7 +4,7 @@ version = "0.8.16"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.94"
+anyhow = "1.0.95"
 cargo_toml = "0.21.0"
 chrono = "0.4.39"
 dirs = "5.0.1"
