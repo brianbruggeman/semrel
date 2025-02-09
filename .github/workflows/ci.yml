@@ -33,8 +33,5 @@ jobs:
       - name: Lint
         run: cargo +nightly clippy
 
-      - name: Build
-        run: cargo build
-
       - name: Test
         run: cargo test
