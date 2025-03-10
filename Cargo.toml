@@ -53,5 +53,5 @@ features = ["serde"]
 
 [dev-dependencies]
 rstest = "0.25.0"
-tempfile = "3.17.1"
+tempfile = "3.18.0"
 textwrap = "0.16.1"
