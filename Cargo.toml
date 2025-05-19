@@ -48,7 +48,7 @@ version = "0.3.19"
 features = ["env-filter", "serde", "serde_json", "json"]
 
 [dependencies.xdg]
-version = "2.5.2"
+version = "3.0.0"
 features = ["serde"]
 
 [dev-dependencies]
