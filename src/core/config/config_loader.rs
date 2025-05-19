@@ -98,7 +98,7 @@ fn build_config_paths(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigErro
 }
 
 fn build_canonical_config_paths() -> Result<Vec<PathBuf>, ConfigError> {
-    let xdg_dirs = BaseDirectories::with_prefix("semrel").map_err(|e| ConfigError::InvalidConfig(e.to_string()))?;
+    let xdg_dirs = BaseDirectories::with_prefix("semrel");
 
     let paths = [
         // In an XDG compliant configuration directory
