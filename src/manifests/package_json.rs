@@ -36,7 +36,7 @@ impl ManifestObjectSafe for PackageJson {
             .manifest
             .version
             .parse::<SimpleVersion>()
-            .map_err(|e| ManifestError::InvalidManifest(format!("Invalid version part: {}", e)))?;
+            .map_err(|e| ManifestError::InvalidManifest(format!("Invalid version part: {e}")))?;
         Ok(version)
     }
 
@@ -47,8 +47,8 @@ impl ManifestObjectSafe for PackageJson {
 
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
         let path = path.into();
-        let data = serde_json::to_string_pretty(&self.manifest).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
-        std::fs::write(path, data).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
+        let data = serde_json::to_string_pretty(&self.manifest).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {e}")))?;
+        std::fs::write(path, data).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {e}")))?;
         Ok(())
     }
 }
@@ -56,7 +56,7 @@ impl ManifestObjectSafe for PackageJson {
 impl Manifest for PackageJson {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::debug!("Parsing package.json");
-        let manifest = serde_json::from_str::<PkgJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {}", e)))?;
+        let manifest = serde_json::from_str::<PkgJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {e}")))?;
         tracing::trace!("Manifest: {manifest:?}");
         Ok(Self { manifest })
     }

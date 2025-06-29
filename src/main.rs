@@ -226,7 +226,7 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
                         }
                         shown.push(commit_type.to_owned());
                         if bump_rule != BumpRule::NoBump {
-                            println!("{:?} -> {:?}", commit_type, bump_rule);
+                            println!("{commit_type:?} -> {bump_rule:?}");
                         }
                     }
                 }
@@ -241,7 +241,7 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
                 }
                 shown.push(commit_type.to_owned());
                 if *bump_rule != BumpRule::NoBump {
-                    println!("{:?} -> {:?}", commit_type, bump_rule);
+                    println!("{commit_type:?} -> {bump_rule:?}");
                 }
             }
             Ok(())
@@ -285,7 +285,7 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
                 .collect::<Vec<_>>()
                 .join("\n");
             let next_version = &cli_data.new_version;
-            println!("semrel: {}\n\n{}\n\n# Log\n{}\n", next_version, release_notes, log);
+            println!("semrel: {next_version}\n\n{release_notes}\n\n# Log\n{log}\n");
             Ok(())
         }
     }

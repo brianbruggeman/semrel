@@ -121,7 +121,7 @@ impl<'a> From<Commit<'a>> for ConventionalCommit {
 impl fmt::Display for ConventionalCommit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scope = match &self.scope {
-            Some(scope) => format!("({})", scope),
+            Some(scope) => format!("({scope})"),
             None => "".to_string(),
         };
 

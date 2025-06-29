@@ -23,9 +23,8 @@ impl CargoToml {
             r#"
                 [package]
                 name = "default"
-                version = "{}"
-            "#,
-            version_string
+                version = "{version_string}"
+            "#
         );
         let manifest = cargo_toml::Manifest::from_slice(data.as_bytes()).expect("Failed to parse default Cargo.toml");
         Self { manifest }
