@@ -208,7 +208,8 @@ jobs:
           cp x86_64-unknown-linux-musl/semrel ./semrel
 
       - name: Create Release Notes
-        run: ./semrel show notes > release-notes-$(./semrel show next).md
+        run: |
+          echo "${{ needs.semrel.outputs.release-notes }}" | base64 -d > release-notes-${{ needs.semrel.outputs.next-version }}.md
 
       - name: Update artifact names
         run: |
