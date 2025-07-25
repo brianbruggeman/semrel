@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use xdg::BaseDirectories;
 
-use crate::{find_manifest, find_top_of_repo, ConfigError, SemRelConfig};
+use crate::{ConfigError, SemRelConfig, find_manifest, find_top_of_repo};
 pub const DEFAULT_CONFIG_FILENAME: &str = ".semrel.toml";
 
 pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {

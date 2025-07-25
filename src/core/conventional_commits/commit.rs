@@ -4,7 +4,7 @@ use std::path::Path;
 use git2::Commit;
 use pest::Parser;
 
-use crate::{get_recent_commit, prune_message, ConventionalCommitError};
+use crate::{ConventionalCommitError, get_recent_commit, prune_message};
 
 use super::{CommitMessageParser, CommitType, Rule};
 

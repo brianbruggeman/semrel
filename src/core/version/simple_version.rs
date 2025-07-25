@@ -4,8 +4,8 @@ use std::{
 };
 
 use num_traits::AsPrimitive;
-use serde::de::{self, Deserializer, Visitor};
 use serde::Deserialize;
+use serde::de::{self, Deserializer, Visitor};
 
 use super::{Ver, VersionError};
 use crate::BumpRule;

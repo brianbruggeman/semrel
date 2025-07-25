@@ -6,8 +6,8 @@ use std::str::FromStr;
 use crate::SimpleVersion;
 
 use crate::{
-    core::{Manifest, ManifestError},
     ManifestObjectSafe, ManifestStatic,
+    core::{Manifest, ManifestError},
 };
 
 #[derive(Debug, serde::Deserialize, PartialEq, Clone)]
@@ -139,7 +139,7 @@ mod tests {
 
     use crate::core::{ManifestError, SimpleVersion};
     use rstest::{fixture, rstest};
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     #[fixture]
     fn temp_cargo_toml() -> (TempDir, PathBuf, PathBuf) {

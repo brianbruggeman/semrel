@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::{
-    core::{Manifest, ManifestError, ManifestObjectSafe, SimpleVersion},
     ManifestStatic,
+    core::{Manifest, ManifestError, ManifestObjectSafe, SimpleVersion},
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -136,7 +136,7 @@ mod tests {
 
     use crate::core::{ManifestError, SimpleVersion};
     use rstest::{fixture, rstest};
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     #[fixture]
     fn temp_pyproject_toml() -> (TempDir, PathBuf, PathBuf) {

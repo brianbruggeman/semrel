@@ -112,7 +112,10 @@ mod tests {
     #[case::fix_with_body_and_footer("fix: a fix\n\nThis a fix body\n\nWith another entry\n\nThis is a footer", "This a fix body\n\nWith another entry\n\nThis is a footer")]
     #[case::breaking_change("feat: add commit message parser\n\nBREAKING CHANGE: this is a breaking change", "this is a breaking change")]
     #[case::natural_multi_line_commit("add commit message parser\n\nThis is a multi-line commit message", "This is a multi-line commit message")]
-    #[case::squash_and_merge("chore(package): upgrade ruff (#4031)\n\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting\n\n* chore(ci): update ci to use ruff format\n", "* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting\n\n* chore(ci): update ci to use ruff format")]
+    #[case::squash_and_merge(
+        "chore(package): upgrade ruff (#4031)\n\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting\n\n* chore(ci): update ci to use ruff format\n",
+        "* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting\n\n* chore(ci): update ci to use ruff format"
+    )]
     fn test_parsing_section(#[case] commit_message: impl AsRef<str>, #[case] expected: impl AsRef<str>) {
         let commit_message = commit_message.as_ref();
         match CommitMessageParser::parse(Rule::commit_message, commit_message) {

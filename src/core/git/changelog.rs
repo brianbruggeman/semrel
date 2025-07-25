@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use git2::{Oid, TreeWalkMode};
 
 use super::CommitInfo;
-use crate::{find_top_of_repo, BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest};
+use crate::{BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest, find_top_of_repo};
 
 #[derive(Debug, Clone)]
 pub struct CommitWithVersion {

@@ -4,8 +4,8 @@ use package_json::PackageJson as PkgJson;
 use serde_json::to_string;
 
 use crate::{
-    core::{Manifest, ManifestError, SimpleVersion},
     ManifestObjectSafe, ManifestStatic,
+    core::{Manifest, ManifestError, SimpleVersion},
 };
 
 #[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -78,7 +78,7 @@ mod tests {
     use std::io::Write;
     use std::path::PathBuf;
     use std::{fs::File, str::FromStr};
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     #[fixture]
     fn temp_package_json() -> (TempDir, PathBuf, PathBuf) {

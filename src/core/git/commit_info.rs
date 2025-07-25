@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{match_rule, BumpRule, CommitType, ConventionalCommit};
+use crate::{BumpRule, CommitType, ConventionalCommit, match_rule};
 
 #[derive(Debug, Default, Clone, serde::Deserialize, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct CommitInfo {
