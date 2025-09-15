@@ -40,7 +40,7 @@ version = "1.0.143"
 features = ["preserve_order"]
 
 [dependencies.toml]
-version = "0.9.5"
+version = "0.9.6"
 features = ["preserve_order"]
 
 [dependencies.tracing-subscriber]
