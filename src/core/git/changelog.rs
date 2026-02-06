@@ -41,8 +41,8 @@ pub fn should_stop_collecting(context: &StoppingContext, commit_with_version: &C
             tracing::debug!("Stopped at minor boundary: version {}", version_at_commit);
             true
         }
-        (BumpRule::Patch, _, _) => {
-            tracing::debug!("Stopped at patch boundary: version {}", version_at_commit);
+        (BumpRule::Patch, _, 0) => {
+            tracing::debug!("Stopped at minor boundary for patch: version {}", version_at_commit);
             true
         }
         _ => {
@@ -136,7 +136,7 @@ pub fn collect_changelog_commits_streaming(
             let boundary_matches = match (max_bump_so_far, version_at_commit.minor(), version_at_commit.patch()) {
                 (BumpRule::Major, 0, 0) => true, // Major bump needs major boundary (x.0.0)
                 (BumpRule::Minor, _, 0) => true, // Minor bump needs minor boundary (x.y.0)
-                (BumpRule::Patch, _, _) => true, // Patch bump can stop at any boundary
+                (BumpRule::Patch, _, 0) => true, // Patch bump stops at minor boundary (x.y.0)
                 _ => false,
             };
 
@@ -193,7 +193,7 @@ pub fn collect_changelog_commits(commits_with_versions: Vec<CommitWithVersion>, 
             let boundary_matches = match (max_bump_so_far, version_at_commit.minor(), version_at_commit.patch()) {
                 (BumpRule::Major, 0, 0) => true, // Major bump needs major boundary (x.0.0)
                 (BumpRule::Minor, _, 0) => true, // Minor bump needs minor boundary (x.y.0)
-                (BumpRule::Patch, _, _) => true, // Patch bump can stop at any boundary
+                (BumpRule::Patch, _, 0) => true, // Patch bump stops at minor boundary (x.y.0)
                 _ => false,
             };
 
@@ -2098,4 +2098,70 @@ mod tests {
         result.unwrap();
     }
 
+    #[test]
+    fn patch_should_not_stop_at_patch_boundary() {
+        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
+
+        let context = StoppingContext {
+            current_version: SimpleVersion::new(1, 1, 3),
+            max_bump_so_far: BumpRule::Patch,
+            commits_collected: vec![],
+        };
+
+        let patch_boundary = CommitWithVersion {
+            commit_info: CommitInfo::new("b1", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: at 1.1.2").unwrap(), 100),
+            version_at_commit: Some(SimpleVersion::new(1, 1, 2)),
+        };
+        assert!(
+            !should_stop_collecting(&context, &patch_boundary, &rules),
+            "Patch should skip past patch boundaries to accumulate all patches since last minor"
+        );
+
+        let minor_boundary = CommitWithVersion {
+            commit_info: CommitInfo::new("b2", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: at 1.1.0").unwrap(), 50),
+            version_at_commit: Some(SimpleVersion::new(1, 1, 0)),
+        };
+        assert!(should_stop_collecting(&context, &minor_boundary, &rules), "Patch should stop at minor boundaries");
+    }
+
+    #[test]
+    fn patch_changelog_accumulates_since_minor() {
+        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
+        let current_version = SimpleVersion::new(1, 1, 3);
+
+        // 1.1.0 → fix A → 1.1.1 → fix B → 1.1.2 → fix C → (current 1.1.3)
+        let commits = vec![
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c3", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix C").unwrap(), 600),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("v112", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: release 1.1.2").unwrap(), 500),
+                version_at_commit: Some(SimpleVersion::new(1, 1, 2)),
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c2", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix B").unwrap(), 400),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("v111", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: release 1.1.1").unwrap(), 300),
+                version_at_commit: Some(SimpleVersion::new(1, 1, 1)),
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c1", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix A").unwrap(), 200),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("v110", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: release 1.1.0").unwrap(), 100),
+                version_at_commit: Some(SimpleVersion::new(1, 1, 0)),
+            },
+        ];
+
+        let result = collect_changelog_commits(commits, current_version, &rules);
+        let ids: Vec<&str> = result.iter().map(|c| c.id.as_str()).collect();
+
+        assert!(ids.contains(&"c1"), "fix A should be in changelog: {ids:?}");
+        assert!(ids.contains(&"c2"), "fix B should be in changelog: {ids:?}");
+        assert!(ids.contains(&"c3"), "fix C should be in changelog: {ids:?}");
+    }
 }
