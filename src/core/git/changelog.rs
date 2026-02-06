@@ -1981,4 +1981,121 @@ mod tests {
             }
         }
     }
+
+    // ============================================================================
+    // ISSUE TESTS - Demonstrate specific algorithm problems
+    // ============================================================================
+
+    #[test]
+    fn streaming_vs_legacy_diverge_on_boundary_commits() {
+        // The legacy function first collects ALL non-boundary commits (Phase 1),
+        // then walks boundary commits separately (Phase 2). The streaming version
+        // interleaves both. This means they can produce different commit sets.
+        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
+        let current_version = SimpleVersion::new(1, 0, 0);
+
+        // Interleave: non-boundary, boundary(0.2.0), non-boundary, boundary(0.1.0)
+        let commits = vec![
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c1", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: feature 1").unwrap(), 1000),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c2", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: at 0.2.0").unwrap(), 900),
+                version_at_commit: Some(SimpleVersion::new(0, 2, 0)),
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c3", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix after boundary").unwrap(), 800),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c4", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: at 0.1.0").unwrap(), 700),
+                version_at_commit: Some(SimpleVersion::new(0, 1, 0)),
+            },
+        ];
+
+        let legacy_result = collect_changelog_commits(commits.clone(), current_version, &rules);
+
+        // Legacy Phase 1 collects c1, c3 (all non-boundary).
+        // max_bump = Minor (from c1's feat).
+        // Phase 2 sees c2 (0.2.0, minor=2, patch=0) -> matches Minor pattern -> stops.
+        // Legacy result: [c1, c3] — note c3 is AFTER the 0.2.0 boundary in history.
+        let legacy_ids: Vec<&str> = legacy_result.iter().map(|c| c.id.as_str()).collect();
+        assert!(legacy_ids.contains(&"c3"), "Legacy collects c3 which is past the 0.2.0 boundary: {legacy_ids:?}");
+
+        // Streaming would process in order: c1 (collect), c2 (boundary 0.2.0 < 1.0.0,
+        // max_bump=Minor, minor boundary matches -> STOP). It never sees c3.
+        // This demonstrates the divergence: legacy includes commits the streaming version skips.
+        assert_eq!(legacy_ids.len(), 2, "Legacy collected {legacy_ids:?}");
+    }
+
+    #[test]
+    fn nobump_commits_never_find_boundary() {
+        // When all commits are NoBump (e.g., docs, ci, test), max_bump stays at Notset.
+        // The boundary match falls into the _ => false arm and never stops.
+        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
+        let current_version = SimpleVersion::new(1, 0, 0);
+
+        let commits = vec![
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c1", vec![] as Vec<PathBuf>, ConventionalCommit::new("docs: update readme").unwrap(), 1000),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("c2", vec![] as Vec<PathBuf>, ConventionalCommit::new("ci: update pipeline").unwrap(), 900),
+                version_at_commit: None,
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("boundary", vec![] as Vec<PathBuf>, ConventionalCommit::new("test: at 0.9.0").unwrap(), 800),
+                version_at_commit: Some(SimpleVersion::new(0, 9, 0)),
+            },
+            CommitWithVersion {
+                commit_info: CommitInfo::new("old1", vec![] as Vec<PathBuf>, ConventionalCommit::new("docs: ancient docs").unwrap(), 100),
+                version_at_commit: None,
+            },
+        ];
+
+        let result = collect_changelog_commits(commits, current_version, &rules);
+        let result_ids: Vec<&str> = result.iter().map(|c| c.id.as_str()).collect();
+
+        // With max_bump_so_far = Notset, boundary at 0.9.0 doesn't match any arm.
+        // The algorithm continues past it and collects old1 which shouldn't be in the changelog.
+        assert!(result_ids.contains(&"old1"), "NoBump never stops: collected {result_ids:?}");
+    }
+
+    #[test]
+    fn initial_commit_tree_walk_gives_flat_names() {
+        let test_repo = TestRepo::new();
+
+        // Create a nested file structure
+        let nested_dir = test_repo.path().join("src");
+        std::fs::create_dir_all(&nested_dir).unwrap();
+        let file_path = nested_dir.join("lib.rs");
+        std::fs::File::create(&file_path)
+            .and_then(|mut f| std::io::Write::write_all(&mut f, b"fn main() {}"))
+            .unwrap();
+
+        let mut index = test_repo.repo.index().unwrap();
+        index.add_path(Path::new("src/lib.rs")).unwrap();
+        index.write().unwrap();
+
+        let commit_oid = test_repo.commit("chore: initial").unwrap();
+        let files = get_files_changed(&test_repo.repo, commit_oid).unwrap();
+
+        // The initial commit branch uses tree.walk with entry.name() which gives
+        // only the filename, not the full relative path. "src/lib.rs" becomes "lib.rs".
+        let has_nested_path = files.iter().any(|f| f == Path::new("src/lib.rs"));
+        let has_flat_name = files.iter().any(|f| f == Path::new("lib.rs"));
+        assert!(has_flat_name && !has_nested_path, "Initial commit tree walk loses directory info. Files: {files:?}");
+    }
+
+    #[test]
+    #[should_panic]
+    fn negative_timestamp_panics() {
+        // git allows commit dates before epoch (e.g., in test repos or corrupted data).
+        // num_traits::cast::<i64, u64>(-1) returns None, and the .unwrap() panics.
+        let result: Option<u64> = num_traits::cast::<i64, u64>(-1);
+        result.unwrap();
+    }
+
 }

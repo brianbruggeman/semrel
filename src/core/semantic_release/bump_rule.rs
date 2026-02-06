@@ -136,3 +136,46 @@ impl<'de> serde::Deserialize<'de> for BumpRule {
         deserializer.deserialize_str(BumpRuleVisitor)
     }
 }
+
+#[cfg(test)]
+mod issue_tests {
+    use super::*;
+
+    #[test]
+    fn ordering_relies_on_declaration_order() {
+        assert!(BumpRule::Notset < BumpRule::NoBump);
+        assert!(BumpRule::NoBump < BumpRule::Patch);
+        assert!(BumpRule::Patch < BumpRule::Minor);
+        assert!(BumpRule::Minor < BumpRule::Major);
+
+        // The algorithm uses .max() to track the highest bump seen.
+        // This only works because the derive(Ord) follows declaration order.
+        // Reordering the enum variants would silently break version calculation.
+        assert_eq!(BumpRule::Patch.max(BumpRule::Minor), BumpRule::Minor);
+        assert_eq!(BumpRule::Minor.max(BumpRule::Major), BumpRule::Major);
+        assert_eq!(BumpRule::Notset.max(BumpRule::Patch), BumpRule::Patch);
+        assert_eq!(BumpRule::NoBump.max(BumpRule::Patch), BumpRule::Patch);
+    }
+
+    #[test]
+    fn from_str_case_m_is_minor_not_major() {
+        // to_lowercase() is applied before matching, so "M" becomes "m"
+        // which matches the minor arm, not the major arm.
+        // The "M" pattern for major is unreachable dead code.
+        let from_upper_m = <BumpRule as std::str::FromStr>::from_str("M").unwrap();
+        let from_lower_m = <BumpRule as std::str::FromStr>::from_str("m").unwrap();
+        assert_eq!(from_upper_m, from_lower_m);
+        // Both resolve to Minor; there is no way to get Major via "M"
+        assert_eq!(from_upper_m, BumpRule::Minor);
+        assert_ne!(from_upper_m, BumpRule::Major);
+    }
+
+    #[test]
+    fn from_ref_str_case_m_is_minor_not_major() {
+        let from_upper: BumpRule = "M".into();
+        let from_lower: BumpRule = "m".into();
+        assert_eq!(from_upper, from_lower);
+        assert_eq!(from_upper, BumpRule::Minor);
+        assert_ne!(from_upper, BumpRule::Major);
+    }
+}
