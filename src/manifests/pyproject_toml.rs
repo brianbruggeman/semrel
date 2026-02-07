@@ -6,9 +6,10 @@ use crate::{
     core::{Manifest, ManifestError, ManifestObjectSafe, SimpleVersion},
 };
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug)]
 pub struct PyProjectToml {
     manifest: toml::Value,
+    raw: String,
 }
 
 impl PyProjectToml {
@@ -83,7 +84,7 @@ impl Default for PyProjectToml {
             version = "0.1.0"
         "#;
         let manifest = toml::from_str(pep621_data).unwrap();
-        Self { manifest }
+        Self { manifest, raw: pep621_data.to_string() }
     }
 }
 
@@ -113,16 +114,24 @@ impl ManifestObjectSafe for PyProjectToml {
     }
 
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
-        let data = toml::to_string(&self.manifest).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        std::fs::write(path.into(), data).map_err(|why| ManifestError::WriteError(why.to_string()))
+        let version = self.version()?.to_string();
+        let mut doc: toml_edit::DocumentMut = self.raw.parse().map_err(|why: toml_edit::TomlError| ManifestError::InvalidManifest(why.to_string()))?;
+        if doc.get("project").is_some() {
+            doc["project"]["version"] = toml_edit::value(&version);
+        }
+        if doc.get("tool").and_then(|t| t.get("poetry")).is_some() {
+            doc["tool"]["poetry"]["version"] = toml_edit::value(&version);
+        }
+        std::fs::write(path.into(), doc.to_string()).map_err(|why| ManifestError::WriteError(why.to_string()))
     }
 }
 
 impl Manifest for PyProjectToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::debug!("Parsing pyproject.toml");
-        let manifest = toml::from_str(data.as_ref()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        Ok(Self { manifest })
+        let raw = data.as_ref().to_string();
+        let manifest = toml::from_str(&raw).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        Ok(Self { manifest, raw })
     }
 }
 
