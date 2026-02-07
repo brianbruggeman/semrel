@@ -84,7 +84,10 @@ impl Default for PyProjectToml {
             version = "0.1.0"
         "#;
         let manifest = toml::from_str(pep621_data).unwrap();
-        Self { manifest, raw: pep621_data.to_string() }
+        Self {
+            manifest,
+            raw: pep621_data.to_string(),
+        }
     }
 }
 
@@ -115,7 +118,10 @@ impl ManifestObjectSafe for PyProjectToml {
 
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
         let version = self.version()?.to_string();
-        let mut doc: toml_edit::DocumentMut = self.raw.parse().map_err(|why: toml_edit::TomlError| ManifestError::InvalidManifest(why.to_string()))?;
+        let mut doc: toml_edit::DocumentMut = self
+            .raw
+            .parse()
+            .map_err(|why: toml_edit::TomlError| ManifestError::InvalidManifest(why.to_string()))?;
         if doc.get("project").is_some() {
             doc["project"]["version"] = toml_edit::value(&version);
         }
