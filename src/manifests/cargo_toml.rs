@@ -110,7 +110,10 @@ impl ManifestObjectSafe for CargoToml {
 
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
         let version = self.version()?.to_string();
-        let mut doc: toml_edit::DocumentMut = self.raw.parse().map_err(|why: toml_edit::TomlError| ManifestError::InvalidManifest(why.to_string()))?;
+        let mut doc: toml_edit::DocumentMut = self
+            .raw
+            .parse()
+            .map_err(|why: toml_edit::TomlError| ManifestError::InvalidManifest(why.to_string()))?;
         doc["package"]["version"] = toml_edit::value(version);
         let mut file = File::create(path.into()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
         file.write_all(doc.to_string().as_bytes())
