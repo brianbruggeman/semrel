@@ -10,9 +10,10 @@ use crate::{
     core::{Manifest, ManifestError},
 };
 
-#[derive(Debug, serde::Deserialize, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CargoToml {
     manifest: cargo_toml::Manifest,
+    raw: String,
 }
 
 impl CargoToml {
@@ -27,7 +28,7 @@ impl CargoToml {
             "#
         );
         let manifest = cargo_toml::Manifest::from_slice(data.as_bytes()).expect("Failed to parse default Cargo.toml");
-        Self { manifest }
+        Self { manifest, raw: data }
     }
 
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ManifestError> {
@@ -40,9 +41,8 @@ impl FromStr for CargoToml {
     type Err = ManifestError;
 
     fn from_str(data: &str) -> Result<Self, Self::Err> {
-        let data = data.as_bytes();
-        let manifest = cargo_toml::Manifest::from_slice(data).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        Ok(Self { manifest })
+        let manifest = cargo_toml::Manifest::from_slice(data.as_bytes()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        Ok(Self { manifest, raw: data.to_string() })
     }
 }
 
@@ -66,8 +66,9 @@ impl Default for CargoToml {
             version = "0.1.0"
         "#
         .as_bytes();
+        let raw = std::str::from_utf8(default_cargo_toml).expect("Invalid UTF-8").to_string();
         let manifest = cargo_toml::Manifest::from_slice(default_cargo_toml).expect("Failed to parse default Cargo.toml");
-        Self { manifest }
+        Self { manifest, raw }
     }
 }
 
@@ -108,9 +109,11 @@ impl ManifestObjectSafe for CargoToml {
     }
 
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
-        let toml_string = toml::to_string(&self.manifest).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        let version = self.version()?.to_string();
+        let mut doc: toml_edit::DocumentMut = self.raw.parse().map_err(|why: toml_edit::TomlError| ManifestError::InvalidManifest(why.to_string()))?;
+        doc["package"]["version"] = toml_edit::value(version);
         let mut file = File::create(path.into()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
-        file.write_all(toml_string.as_bytes())
+        file.write_all(doc.to_string().as_bytes())
             .map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
         Ok(())
     }
@@ -119,13 +122,13 @@ impl ManifestObjectSafe for CargoToml {
 impl Manifest for CargoToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::trace!("Parsing Cargo.toml");
-        let data = data.as_ref().as_bytes();
+        let data = data.as_ref();
         if data.is_empty() {
             return Err(ManifestError::InvalidManifest("Manifest is empty!".to_string()));
         }
-        let manifest = cargo_toml::Manifest::from_slice(data).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
+        let manifest = cargo_toml::Manifest::from_slice(data.as_bytes()).map_err(|why| ManifestError::InvalidManifest(why.to_string()))?;
         tracing::trace!("Parsed manifest.");
-        Ok(Self { manifest })
+        Ok(Self { manifest, raw: data.to_string() })
     }
 }
 
@@ -245,10 +248,38 @@ mod tests {
         let result = CargoToml::parse(data).expect("Failed to parse Cargo.toml");
         match (&result.version(), &expected.as_ref()) {
             (Ok(result), Ok(expected)) => assert_eq!(result, *expected, "Expected {expected:?} but got {result:?}"),
-            // For the moment, don't worry about precise parsing errors
             (Err(_result), Err(_expected)) => {}
             (Ok(result), Err(_)) => panic!("\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
             _ => panic!("\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
         }
+    }
+
+    #[test]
+    fn test_write_preserves_formatting() {
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("Cargo.toml");
+
+        let original = r#"[package]
+name = "test"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive", "env"] }
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.24"
+"#;
+        std::fs::write(&file_path, original).unwrap();
+
+        let mut manifest = CargoToml::parse(original).unwrap();
+        manifest.set_version(SimpleVersion::new(2, 0, 0)).unwrap();
+        manifest.write(&file_path).unwrap();
+
+        let result = std::fs::read_to_string(&file_path).unwrap();
+        let expected = original.replace("1.0.0", "2.0.0");
+        assert_eq!(result, expected);
     }
 }
