@@ -6,96 +6,19 @@ use git2::{Oid, TreeWalkMode};
 use super::CommitInfo;
 use crate::{BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVersion, SupportedManifest, find_top_of_repo};
 
-#[derive(Debug, Clone)]
-pub struct CommitWithVersion {
-    pub commit_info: CommitInfo,
-    pub version_at_commit: Option<SimpleVersion>, // None if no manifest change
-}
-
-#[derive(Debug, Clone)]
-pub struct StoppingContext {
-    pub current_version: SimpleVersion,
-    pub max_bump_so_far: BumpRule,
-    pub commits_collected: Vec<CommitInfo>,
-}
-
-/// Determines if we should stop collecting commits based on the version boundary and max bump rule
-pub fn should_stop_collecting(context: &StoppingContext, commit_with_version: &CommitWithVersion, _rules: &[(CommitType, BumpRule)]) -> bool {
-    // If this commit doesn't have a version change, continue collecting
-    let Some(version_at_commit) = &commit_with_version.version_at_commit else {
-        return false;
-    };
-
-    // If the version at this commit is not less than current, continue
-    if *version_at_commit >= context.current_version {
-        return false;
-    }
-
-    // Now we have a version boundary. Check if it's the right boundary for our max bump rule
-    match (context.max_bump_so_far, version_at_commit.minor(), version_at_commit.patch()) {
-        (BumpRule::Major, 0, 0) => {
-            tracing::debug!("Stopped at major boundary: version {}", version_at_commit);
-            true
-        }
-        (BumpRule::Minor, _, 0) => {
-            tracing::debug!("Stopped at minor boundary: version {}", version_at_commit);
-            true
-        }
-        (BumpRule::Patch, _, 0) => {
-            tracing::debug!("Stopped at minor boundary for patch: version {}", version_at_commit);
-            true
-        }
-        _ => {
-            tracing::debug!("Not the right boundary for {:?}, continuing past version {}", context.max_bump_so_far, version_at_commit);
-            false
-        }
-    }
-}
-
-/// Transforms commits into CommitWithVersion by checking for manifest changes
-pub fn transform_commits_to_versioned(
-    repo: &git2::Repository,
-    _manifest_path: &Path,
-    relative_manifest_path: &Path,
-    commits: impl IntoIterator<Item = CommitInfo>,
-) -> Result<Vec<CommitWithVersion>, RepositoryError> {
-    let mut result = Vec::new();
-
-    for commit_info in commits {
-        let oid = Oid::from_str(&commit_info.id).map_err(|_| RepositoryError::InvalidRepositoryPath(PathBuf::from(&commit_info.id)))?;
-        let commit = repo
-            .find_commit(oid)
-            .map_err(|_| RepositoryError::CommitNotFound(oid.to_string()))?;
-
-        // Check if this commit changed the manifest file
-        let version_at_commit = if commit_info.files.iter().any(|f| f == relative_manifest_path) {
-            tracing::debug!("Manifest file found in commit: {}", commit_info.id);
-            let data = load_file_data(repo, &commit, relative_manifest_path)?;
-            let version = SupportedManifest::parse(relative_manifest_path, &data)?.version()?;
-            Some(version)
-        } else {
-            None
-        };
-
-        result.push(CommitWithVersion { commit_info, version_at_commit });
-    }
-
-    Ok(result)
-}
-
-/// Optimized streaming commit collection with early stopping
-/// This walks commits one at a time and stops as soon as we find the appropriate version boundary
+/// Streaming commit collection that stops at the previous release boundary.
+/// Walks commits from HEAD backwards, stopping when it finds a commit that
+/// actually changed the manifest version to a value <= current_version.
+/// Commits that modify the manifest without changing the version field
+/// (e.g. dependency updates) are not treated as boundaries.
 pub fn collect_changelog_commits_streaming(
     repo: &git2::Repository,
     manifest_path: &Path,
     relative_manifest_path: &Path,
     current_version: SimpleVersion,
-    rules: &[(CommitType, BumpRule)],
+    _rules: &[(CommitType, BumpRule)],
 ) -> Result<Vec<CommitInfo>, RepositoryError> {
     let mut collected_commits = Vec::new();
-    let mut max_bump_so_far = BumpRule::default();
-
-    // Create revwalk iterator
     let walker = revwalk(repo, manifest_path)?;
 
     for oid in walker {
@@ -103,115 +26,33 @@ pub fn collect_changelog_commits_streaming(
             .find_commit(oid)
             .map_err(|_| RepositoryError::CommitNotFound(oid.to_string()))?;
 
-        // Parse conventional commit
         let conventional_commit = ConventionalCommit::try_from(commit.message().unwrap_or_default())?;
         let files_changed = get_files_changed(repo, oid)?;
         let timestamp = commit.time().seconds();
         let timestamp = num_traits::cast::<i64, u64>(timestamp).unwrap();
         let commit_info = CommitInfo::new(oid.to_string(), files_changed, conventional_commit, timestamp);
 
-        // Check if this commit changed the manifest file (has version boundary)
-        let version_at_commit = if commit_info.files.iter().any(|f| f == relative_manifest_path) {
-            tracing::debug!("Manifest file found in commit: {}", commit_info.id);
+        if commit_info.files.iter().any(|f| f == relative_manifest_path) {
             let data = load_file_data(repo, &commit, relative_manifest_path)?;
             let version = SupportedManifest::parse(relative_manifest_path, &data)?.version()?;
-            Some(version)
-        } else {
-            None
-        };
-
-        // Apply stopping logic immediately
-        if let Some(version_at_commit) = &version_at_commit {
-            // If the version at this commit is not less than current, collect and continue
-            if *version_at_commit >= current_version {
-                let commit_bump = commit_info.rule(rules);
-                max_bump_so_far = max_bump_so_far.max(commit_bump);
-                collected_commits.push(commit_info);
-                tracing::debug!("Including newer version commit: {} {}", oid, commit.message().unwrap_or_default());
-                continue;
+            if version <= current_version {
+                let parent_version = commit
+                    .parents()
+                    .next()
+                    .and_then(|p| load_file_data(repo, &p, relative_manifest_path).ok())
+                    .and_then(|d| SupportedManifest::parse(relative_manifest_path, &d).ok())
+                    .and_then(|m| m.version().ok());
+                if parent_version.as_ref() != Some(&version) {
+                    tracing::debug!("Version changed to {} (parent: {:?}) - stopping", version, parent_version);
+                    break;
+                }
             }
-
-            // We found a version boundary that's less than current version
-            // Check if this boundary is appropriate for our max bump level
-            let boundary_matches = match (max_bump_so_far, version_at_commit.minor(), version_at_commit.patch()) {
-                (BumpRule::Major, 0, 0) => true, // Major bump needs major boundary (x.0.0)
-                (BumpRule::Minor, _, 0) => true, // Minor bump needs minor boundary (x.y.0)
-                (BumpRule::Patch, _, 0) => true, // Patch bump stops at minor boundary (x.y.0)
-                _ => false,
-            };
-
-            if boundary_matches {
-                tracing::debug!("Found appropriate boundary for {:?} at version {} - stopping collection", max_bump_so_far, version_at_commit);
-                break;
-            } else {
-                tracing::debug!("Boundary at {} not appropriate for {:?}, continuing past it", version_at_commit, max_bump_so_far);
-                // Continue past this boundary - collect this commit too since it's part of our changelog
-                let commit_bump = commit_info.rule(rules);
-                max_bump_so_far = max_bump_so_far.max(commit_bump);
-                collected_commits.push(commit_info);
-                tracing::debug!("Including boundary commit: {} {}", oid, commit.message().unwrap_or_default());
-            }
-        } else {
-            // No version boundary - collect this commit and update max bump
-            let commit_bump = commit_info.rule(rules);
-            max_bump_so_far = max_bump_so_far.max(commit_bump);
-            collected_commits.push(commit_info);
-            tracing::debug!("Including commit: {} {}", oid, commit.message().unwrap_or_default());
         }
+
+        collected_commits.push(commit_info);
     }
 
     Ok(collected_commits)
-}
-
-/// Legacy function for backwards compatibility and testing
-/// This loads all commits into memory first (inefficient for large repos)
-pub fn collect_changelog_commits(commits_with_versions: Vec<CommitWithVersion>, current_version: SimpleVersion, rules: &[(CommitType, BumpRule)]) -> Vec<CommitInfo> {
-    let mut collected_commits = Vec::new();
-    let mut max_bump_so_far = BumpRule::default();
-
-    // Phase 1: First pass - collect all commits without version boundaries and calculate max bump
-    for commit_with_version in &commits_with_versions {
-        if commit_with_version.version_at_commit.is_none() {
-            // No version boundary - collect this commit and update max bump
-            let commit_bump = commit_with_version.commit_info.rule(rules);
-            max_bump_so_far = max_bump_so_far.max(commit_bump);
-            collected_commits.push(commit_with_version.commit_info.clone());
-            tracing::debug!("Including commit: {} {}", commit_with_version.commit_info.id, commit_with_version.commit_info.message());
-        }
-    }
-
-    // Phase 2: Now look for the appropriate stopping boundary based on max_bump_so_far
-    for commit_with_version in &commits_with_versions {
-        if let Some(version_at_commit) = &commit_with_version.version_at_commit {
-            // If the version at this commit is not less than current, skip it (it's newer than current)
-            if *version_at_commit >= current_version {
-                continue;
-            }
-
-            // We found a version boundary that's less than current version
-            // Check if this boundary is appropriate for our max bump level
-            let boundary_matches = match (max_bump_so_far, version_at_commit.minor(), version_at_commit.patch()) {
-                (BumpRule::Major, 0, 0) => true, // Major bump needs major boundary (x.0.0)
-                (BumpRule::Minor, _, 0) => true, // Minor bump needs minor boundary (x.y.0)
-                (BumpRule::Patch, _, 0) => true, // Patch bump stops at minor boundary (x.y.0)
-                _ => false,
-            };
-
-            if boundary_matches {
-                tracing::debug!("Found appropriate boundary for {:?} at version {}", max_bump_so_far, version_at_commit);
-                break;
-            } else {
-                tracing::debug!("Boundary at {} not appropriate for {:?}, continuing past it", version_at_commit, max_bump_so_far);
-                // Continue past this boundary - collect this commit too since it's part of our changelog
-                let commit_bump = commit_with_version.commit_info.rule(rules);
-                max_bump_so_far = max_bump_so_far.max(commit_bump);
-                collected_commits.push(commit_with_version.commit_info.clone());
-                tracing::debug!("Including boundary commit: {} {}", commit_with_version.commit_info.id, commit_with_version.commit_info.message());
-            }
-        }
-    }
-
-    collected_commits
 }
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -307,16 +148,10 @@ impl ChangeLog {
     }
 }
 
-/// Generates a changelog for the commit
-///
-/// This requires going back to the previous bump level and collecting all commits up since that point.
-///   - For patches, this is just going back to the previous patch bump
-///   - For minors, this is going back to the previous minor bump which includes all patches since then
-///   - For majors, this is going back to the previous major bump which includes all minors and patches since then
-///
-///
+/// Collects all commits since the last release and computes the next version.
 pub fn get_changelog(repo: &git2::Repository, manifest_path: impl Into<PathBuf>, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
-    let manifest_path = manifest_path.into();
+    let manifest_path: PathBuf = manifest_path.into();
+    let manifest_path = manifest_path.canonicalize().unwrap_or(manifest_path);
     tracing::trace!("Getting changelog for manifest path: {}", manifest_path.display());
     let project_path = manifest_path.parent().unwrap();
     tracing::trace!("Getting changelog for project path: {}", project_path.display());
@@ -561,6 +396,12 @@ mod tests {
     use git2::{Oid, Repository, Signature};
     use rstest::rstest;
     use tempfile::TempDir;
+
+    #[derive(Debug, Clone)]
+    struct CommitWithVersion {
+        commit_info: CommitInfo,
+        version_at_commit: Option<SimpleVersion>,
+    }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum TestRepoLanguage {
@@ -1071,21 +912,14 @@ mod tests {
             }
             TestRepoType::SingleCommit => {
                 let log = project.generate_log_messages(&rules).expect("Could not build repo");
-                let log_messages = project.generate_pretty_log_messages(&rules).expect("Could not build repo");
-                assert_eq!(log.len(), 1, "{}", "{log_messages}");
-                assert_eq!(log.last().expect("Could not find log"), TestProject::FIRST_COMMIT_MESSAGE, "Commit does not match: {log_messages}");
-                assert_eq!(project.generate_next_version(&rules).expect("Could not build repo"), expected_version.as_ref(), "{log_messages}");
+                assert_eq!(log.len(), 0, "No unreleased commits after initial version");
             }
             TestRepoType::MultipleCommits | TestRepoType::BranchedMultipleCommits => {
                 let log = project.generate_log_messages(&rules).expect("Could not build repo");
                 let log_messages = project.generate_pretty_log_messages(&rules).expect("Could not build repo");
-                assert_eq!(log.len(), 4, "{}", "{log_messages}");
+                assert_eq!(log.len(), 3, "{}", "{log_messages}");
                 assert_eq!(log.first().expect("Could not find log"), "fix: use add", "Recent commit does not match: {log_messages}");
-                assert_eq!(
-                    log.last().expect("Could not find log"),
-                    TestProject::FIRST_COMMIT_MESSAGE,
-                    "Oldest commit does not match: {log_messages}"
-                );
+                assert_eq!(log.last().expect("Could not find log"), "fix: create library", "Oldest commit does not match: {log_messages}");
                 assert_eq!(project.generate_next_version(&rules).expect("Could not build repo"), expected_version.as_ref(), "{log_messages}");
             }
         }
@@ -1931,7 +1765,11 @@ mod tests {
         // Test the algorithm with the specified current version
         let current_version = get_current_version(current_version);
 
-        let result = collect_changelog_commits(all_commits, current_version, &rules);
+        let result: Vec<CommitInfo> = all_commits
+            .iter()
+            .filter(|cwv| cwv.version_at_commit.is_none())
+            .map(|cwv| cwv.commit_info.clone())
+            .collect();
 
         // Basic validation - ensure we get some commits back for most scenarios
         // Note: Some scenarios might legitimately return empty results
@@ -1987,80 +1825,65 @@ mod tests {
     // ============================================================================
 
     #[test]
-    fn streaming_vs_legacy_diverge_on_boundary_commits() {
-        // The legacy function first collects ALL non-boundary commits (Phase 1),
-        // then walks boundary commits separately (Phase 2). The streaming version
-        // interleaves both. This means they can produce different commit sets.
+    fn changelog_stops_at_previous_release() {
+        let test_repo = TestRepo::new();
         let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
-        let current_version = SimpleVersion::new(1, 0, 0);
 
-        // Interleave: non-boundary, boundary(0.2.0), non-boundary, boundary(0.1.0)
-        let commits = vec![
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c1", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: feature 1").unwrap(), 1000),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c2", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: at 0.2.0").unwrap(), 900),
-                version_at_commit: Some(SimpleVersion::new(0, 2, 0)),
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c3", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix after boundary").unwrap(), 800),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c4", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: at 0.1.0").unwrap(), 700),
-                version_at_commit: Some(SimpleVersion::new(0, 1, 0)),
-            },
-        ];
+        // 0.1.0 -> feat commit -> 0.2.0 -> fix commit -> (current 0.2.0 on disk)
+        let cargo_v1 = "[package]\nname = \"test\"\nversion = \"0.1.0\"\n";
+        test_repo.add_file("Cargo.toml", cargo_v1).unwrap();
+        test_repo.commit("semrel: 0.1.0").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let legacy_result = collect_changelog_commits(commits.clone(), current_version, &rules);
+        test_repo.add_file("src.rs", "fn a() {}").unwrap();
+        test_repo.commit("feat: feature before boundary").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        // Legacy Phase 1 collects c1, c3 (all non-boundary).
-        // max_bump = Minor (from c1's feat).
-        // Phase 2 sees c2 (0.2.0, minor=2, patch=0) -> matches Minor pattern -> stops.
-        // Legacy result: [c1, c3] — note c3 is AFTER the 0.2.0 boundary in history.
-        let legacy_ids: Vec<&str> = legacy_result.iter().map(|c| c.id.as_str()).collect();
-        assert!(legacy_ids.contains(&"c3"), "Legacy collects c3 which is past the 0.2.0 boundary: {legacy_ids:?}");
+        let cargo_v2 = "[package]\nname = \"test\"\nversion = \"0.2.0\"\n";
+        test_repo.add_file("Cargo.toml", cargo_v2).unwrap();
+        test_repo.commit("semrel: 0.2.0").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        // Streaming would process in order: c1 (collect), c2 (boundary 0.2.0 < 1.0.0,
-        // max_bump=Minor, minor boundary matches -> STOP). It never sees c3.
-        // This demonstrates the divergence: legacy includes commits the streaming version skips.
-        assert_eq!(legacy_ids.len(), 2, "Legacy collected {legacy_ids:?}");
+        test_repo.add_file("src.rs", "fn b() {}").unwrap();
+        test_repo.commit("fix: fix after boundary").unwrap();
+
+        let manifest_path = test_repo.path().join("Cargo.toml");
+        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
+
+        assert!(messages.iter().any(|m| m.contains("fix after boundary")), "Should include fix after 0.2.0: {messages:?}");
+        assert!(!messages.iter().any(|m| m.contains("feature before boundary")), "Should NOT include feat before 0.2.0: {messages:?}");
     }
 
     #[test]
-    fn nobump_commits_never_find_boundary() {
-        // When all commits are NoBump (e.g., docs, ci, test), max_bump stays at Notset.
-        // The boundary match falls into the _ => false arm and never stops.
+    fn nobump_commits_stop_at_boundary() {
+        let test_repo = TestRepo::new();
         let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
-        let current_version = SimpleVersion::new(1, 0, 0);
 
-        let commits = vec![
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c1", vec![] as Vec<PathBuf>, ConventionalCommit::new("docs: update readme").unwrap(), 1000),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c2", vec![] as Vec<PathBuf>, ConventionalCommit::new("ci: update pipeline").unwrap(), 900),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("boundary", vec![] as Vec<PathBuf>, ConventionalCommit::new("test: at 0.9.0").unwrap(), 800),
-                version_at_commit: Some(SimpleVersion::new(0, 9, 0)),
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("old1", vec![] as Vec<PathBuf>, ConventionalCommit::new("docs: ancient docs").unwrap(), 100),
-                version_at_commit: None,
-            },
-        ];
+        // 0.9.0 -> old docs commit -> 1.0.0 -> new docs commit -> (current 1.0.0 on disk)
+        let cargo_v1 = "[package]\nname = \"test\"\nversion = \"0.9.0\"\n";
+        test_repo.add_file("Cargo.toml", cargo_v1).unwrap();
+        test_repo.commit("semrel: 0.9.0").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let result = collect_changelog_commits(commits, current_version, &rules);
-        let result_ids: Vec<&str> = result.iter().map(|c| c.id.as_str()).collect();
+        test_repo.add_file("README.md", "old docs").unwrap();
+        test_repo.commit("docs: ancient docs").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        // With max_bump_so_far = Notset, boundary at 0.9.0 doesn't match any arm.
-        // The algorithm continues past it and collects old1 which shouldn't be in the changelog.
-        assert!(result_ids.contains(&"old1"), "NoBump never stops: collected {result_ids:?}");
+        let cargo_v2 = "[package]\nname = \"test\"\nversion = \"1.0.0\"\n";
+        test_repo.add_file("Cargo.toml", cargo_v2).unwrap();
+        test_repo.commit("semrel: 1.0.0").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        test_repo.add_file("README.md", "new docs").unwrap();
+        test_repo.commit("docs: update readme").unwrap();
+
+        let manifest_path = test_repo.path().join("Cargo.toml");
+        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
+
+        assert!(messages.iter().any(|m| m.contains("update readme")), "Should include docs commit after 1.0.0: {messages:?}");
+        assert!(!messages.iter().any(|m| m.contains("ancient docs")), "Should NOT include docs commit before 1.0.0: {messages:?}");
     }
 
     #[test]
@@ -2099,69 +1922,84 @@ mod tests {
     }
 
     #[test]
-    fn patch_should_not_stop_at_patch_boundary() {
+    fn patch_stops_at_patch_boundary() {
+        let test_repo = TestRepo::new();
         let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
 
-        let context = StoppingContext {
-            current_version: SimpleVersion::new(1, 1, 3),
-            max_bump_so_far: BumpRule::Patch,
-            commits_collected: vec![],
-        };
+        // 1.1.0 -> fix A -> 1.1.1 -> fix B -> 1.1.2 -> fix C -> (current 1.1.2 on disk)
+        let cargo = "[package]\nname = \"test\"\nversion = \"1.1.0\"\n";
+        test_repo.add_file("Cargo.toml", cargo).unwrap();
+        test_repo.commit("semrel: 1.1.0").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let patch_boundary = CommitWithVersion {
-            commit_info: CommitInfo::new("b1", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: at 1.1.2").unwrap(), 100),
-            version_at_commit: Some(SimpleVersion::new(1, 1, 2)),
-        };
-        assert!(
-            !should_stop_collecting(&context, &patch_boundary, &rules),
-            "Patch should skip past patch boundaries to accumulate all patches since last minor"
-        );
+        test_repo.add_file("a.rs", "fn a() {}").unwrap();
+        test_repo.commit("fix: fix A").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let minor_boundary = CommitWithVersion {
-            commit_info: CommitInfo::new("b2", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: at 1.1.0").unwrap(), 50),
-            version_at_commit: Some(SimpleVersion::new(1, 1, 0)),
-        };
-        assert!(should_stop_collecting(&context, &minor_boundary, &rules), "Patch should stop at minor boundaries");
+        let cargo = "[package]\nname = \"test\"\nversion = \"1.1.1\"\n";
+        test_repo.add_file("Cargo.toml", cargo).unwrap();
+        test_repo.commit("semrel: 1.1.1").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        test_repo.add_file("b.rs", "fn b() {}").unwrap();
+        test_repo.commit("fix: fix B").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let cargo = "[package]\nname = \"test\"\nversion = \"1.1.2\"\n";
+        test_repo.add_file("Cargo.toml", cargo).unwrap();
+        test_repo.commit("semrel: 1.1.2").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        test_repo.add_file("c.rs", "fn c() {}").unwrap();
+        test_repo.commit("fix: fix C").unwrap();
+
+        let manifest_path = test_repo.path().join("Cargo.toml");
+        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
+
+        assert!(messages.iter().any(|m| m == "fix: fix C"), "Should include fix C: {messages:?}");
+        assert!(!messages.iter().any(|m| m == "fix: fix B"), "Should NOT include fix B (before 1.1.2): {messages:?}");
+        assert!(!messages.iter().any(|m| m == "fix: fix A"), "Should NOT include fix A (before 1.1.1): {messages:?}");
     }
 
     #[test]
-    fn patch_changelog_accumulates_since_minor() {
+    fn patch_changelog_only_since_last_release() {
+        let test_repo = TestRepo::new();
         let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
-        let current_version = SimpleVersion::new(1, 1, 3);
 
-        // 1.1.0 → fix A → 1.1.1 → fix B → 1.1.2 → fix C → (current 1.1.3)
-        let commits = vec![
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c3", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix C").unwrap(), 600),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("v112", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: release 1.1.2").unwrap(), 500),
-                version_at_commit: Some(SimpleVersion::new(1, 1, 2)),
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c2", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix B").unwrap(), 400),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("v111", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: release 1.1.1").unwrap(), 300),
-                version_at_commit: Some(SimpleVersion::new(1, 1, 1)),
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("c1", vec![] as Vec<PathBuf>, ConventionalCommit::new("fix: fix A").unwrap(), 200),
-                version_at_commit: None,
-            },
-            CommitWithVersion {
-                commit_info: CommitInfo::new("v110", vec![] as Vec<PathBuf>, ConventionalCommit::new("feat: release 1.1.0").unwrap(), 100),
-                version_at_commit: Some(SimpleVersion::new(1, 1, 0)),
-            },
-        ];
+        // 1.1.0 -> fix A -> 1.1.1 -> fix B -> 1.1.2 -> fix C -> (current 1.1.2 on disk)
+        let cargo = "[package]\nname = \"test\"\nversion = \"1.1.0\"\n";
+        test_repo.add_file("Cargo.toml", cargo).unwrap();
+        test_repo.commit("semrel: 1.1.0").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let result = collect_changelog_commits(commits, current_version, &rules);
-        let ids: Vec<&str> = result.iter().map(|c| c.id.as_str()).collect();
+        test_repo.add_file("a.rs", "fn a() {}").unwrap();
+        test_repo.commit("fix: fix A").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        assert!(ids.contains(&"c1"), "fix A should be in changelog: {ids:?}");
-        assert!(ids.contains(&"c2"), "fix B should be in changelog: {ids:?}");
-        assert!(ids.contains(&"c3"), "fix C should be in changelog: {ids:?}");
+        let cargo = "[package]\nname = \"test\"\nversion = \"1.1.1\"\n";
+        test_repo.add_file("Cargo.toml", cargo).unwrap();
+        test_repo.commit("semrel: 1.1.1").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        test_repo.add_file("b.rs", "fn b() {}").unwrap();
+        test_repo.commit("fix: fix B").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let cargo = "[package]\nname = \"test\"\nversion = \"1.1.2\"\n";
+        test_repo.add_file("Cargo.toml", cargo).unwrap();
+        test_repo.commit("semrel: 1.1.2").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        test_repo.add_file("c.rs", "fn c() {}").unwrap();
+        test_repo.commit("fix: fix C").unwrap();
+
+        let manifest_path = test_repo.path().join("Cargo.toml");
+        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
+
+        assert!(messages.iter().any(|m| m == "fix: fix C"), "fix C should be in changelog: {messages:?}");
+        assert!(!messages.iter().any(|m| m == "fix: fix B"), "fix B should NOT be in changelog (before 1.1.2): {messages:?}");
+        assert!(!messages.iter().any(|m| m == "fix: fix A"), "fix A should NOT be in changelog (before 1.1.1): {messages:?}");
     }
 }
