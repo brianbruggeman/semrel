@@ -27,7 +27,7 @@ xdg = { version = "3.0.0", features = ["serde"] }
 
 [dev-dependencies]
 rstest = "0.26.1"
-tempfile = "3.24.0"
+tempfile = "3.25.0"
 textwrap = "0.16.2"
 
 [lints.clippy]
