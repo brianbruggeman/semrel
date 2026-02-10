@@ -27,12 +27,13 @@ impl CargoToml {
                 version = "{version_string}"
             "#
         );
-        let manifest = cargo_toml::Manifest::from_slice(data.as_bytes()).expect("Failed to parse default Cargo.toml");
+        let manifest = cargo_toml::Manifest::from_slice(data.as_bytes()).expect("hardcoded Cargo.toml template must be valid");
         Self { manifest, raw: data }
     }
 
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ManifestError> {
-        let data = std::fs::read_to_string(path).expect("Failed to read file");
+        let data = std::fs::read_to_string(path.as_ref())
+            .map_err(|why| ManifestError::InvalidManifest(format!("failed to read {}: {why}", path.as_ref().display())))?;
         Self::from_str(&data)
     }
 }
@@ -46,15 +47,19 @@ impl FromStr for CargoToml {
     }
 }
 
-impl From<PathBuf> for CargoToml {
-    fn from(path: PathBuf) -> Self {
-        Self::from_path(path).expect("Failed to parse Cargo.toml")
+impl TryFrom<PathBuf> for CargoToml {
+    type Error = ManifestError;
+
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        Self::from_path(path)
     }
 }
 
-impl From<&Path> for CargoToml {
-    fn from(path: &Path) -> Self {
-        Self::from_path(path).expect("Failed to parse Cargo.toml")
+impl TryFrom<&Path> for CargoToml {
+    type Error = ManifestError;
+
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        Self::from_path(path)
     }
 }
 
@@ -66,8 +71,8 @@ impl Default for CargoToml {
             version = "0.1.0"
         "#
         .as_bytes();
-        let raw = std::str::from_utf8(default_cargo_toml).expect("Invalid UTF-8").to_string();
-        let manifest = cargo_toml::Manifest::from_slice(default_cargo_toml).expect("Failed to parse default Cargo.toml");
+        let raw = std::str::from_utf8(default_cargo_toml).expect("hardcoded template must be valid UTF-8").to_string();
+        let manifest = cargo_toml::Manifest::from_slice(default_cargo_toml).expect("hardcoded Cargo.toml template must be valid");
         Self { manifest, raw }
     }
 }

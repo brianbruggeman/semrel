@@ -112,9 +112,14 @@ impl ConventionalCommit {
     }
 }
 
-impl<'a> From<Commit<'a>> for ConventionalCommit {
-    fn from(commit: Commit<'a>) -> Self {
-        ConventionalCommit::new(commit.message().unwrap_or_default()).unwrap_or_default()
+impl<'a> TryFrom<Commit<'a>> for ConventionalCommit {
+    type Error = ConventionalCommitError;
+
+    fn try_from(commit: Commit<'a>) -> Result<Self, Self::Error> {
+        let message = commit
+            .message()
+            .ok_or(ConventionalCommitError::EmptyCommitMessage)?;
+        ConventionalCommit::new(message)
     }
 }
 

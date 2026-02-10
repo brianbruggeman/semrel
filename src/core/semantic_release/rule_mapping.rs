@@ -11,7 +11,8 @@ pub fn parse_rules(rules: &[impl AsRef<str>]) -> anyhow::Result<impl Iterator<It
                 None => anyhow::bail!("No rule found."),
             };
             let bump_rule = match &rule.next() {
-                Some(bump_rule) => BumpRule::from(*bump_rule),
+                Some(bump_rule) => BumpRule::try_from(*bump_rule)
+                    .map_err(|why| anyhow::anyhow!("invalid bump rule for {commit_type}: {why}"))?,
                 None => anyhow::bail!("Invalid rule for: {commit_type}"),
             };
             Ok((commit_type, bump_rule))

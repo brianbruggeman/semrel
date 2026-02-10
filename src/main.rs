@@ -82,7 +82,10 @@ fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
 
     let path = &opts.path;
-    let repo = get_repo(path).map_err(|_| RepositoryError::InvalidRepositoryPath(path.into()))?;
+    let repo = get_repo(path).map_err(|why| {
+        tracing::error!("Failed to open repository at {path}: {why}");
+        RepositoryError::InvalidRepositoryPath(path.into())
+    })?;
     let config_path = match opts.config_path.clone() {
         Some(config_path) => {
             tracing::info!("Configuration present in opts: {}", config_path.display());
@@ -151,8 +154,10 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn handle_update(cli_data: &CliData) -> anyhow::Result<()> {
-    let manifest_data = std::fs::read(&cli_data.manifest_path)?;
-    let data = String::from_utf8(manifest_data)?;
+    let manifest_data = std::fs::read(&cli_data.manifest_path)
+        .map_err(|why| anyhow::anyhow!("failed to read manifest {}: {why}", cli_data.manifest_path.display()))?;
+    let data = String::from_utf8(manifest_data)
+        .map_err(|why| anyhow::anyhow!("manifest {} is not valid UTF-8: {why}", cli_data.manifest_path.display()))?;
     let mut supported_manifest = SupportedManifest::parse(&cli_data.manifest_path, data)?;
     supported_manifest.set_version(cli_data.new_version)?;
     supported_manifest.write(&cli_data.manifest_path)?;
@@ -165,34 +170,29 @@ fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<
             let config_path = match &cli_data.config_path {
                 Some(path) => path.to_owned(),
                 None => {
-                    let manifest_path = cli_data.manifest_path.as_path().parent().unwrap();
+                    let manifest_path = cli_data
+                        .manifest_path
+                        .as_path()
+                        .parent()
+                        .ok_or_else(|| anyhow::anyhow!("manifest path has no parent directory: {}", cli_data.manifest_path.display()))?;
                     manifest_path.join(DEFAULT_CONFIG_FILENAME)
                 }
             };
             // If the file does not exist, let's preseed this with the rules we've captured already
-            match !config_path.exists() {
-                true => {
-                    let mut default_config = SemRelConfig::default();
-                    default_config.extend_rules(&cli_data.rules);
-                    let toml = toml::to_string(&default_config).unwrap();
-                    std::fs::write(&config_path, toml).expect("Unable to write file");
-                }
-                false => match load_config(&config_path) {
-                    Ok(config) => {
-                        if !config.has_rules() {
-                            let mut default_config = SemRelConfig::default();
-                            default_config.extend_rules(&cli_data.rules);
-                            let toml = toml::to_string(&default_config).unwrap();
-                            std::fs::write(&config_path, toml).expect("Unable to write file");
-                        }
-                    }
-                    Err(_) => {
-                        let mut default_config = SemRelConfig::default();
-                        default_config.extend_rules(&cli_data.rules);
-                        let toml = toml::to_string(&default_config).unwrap();
-                        std::fs::write(&config_path, toml).expect("Unable to write file");
-                    }
+            let needs_write = match config_path.exists() {
+                false => true,
+                true => match load_config(&config_path) {
+                    Ok(config) => !config.has_rules(),
+                    Err(_) => true,
                 },
+            };
+            if needs_write {
+                let mut default_config = SemRelConfig::default();
+                default_config.extend_rules(&cli_data.rules);
+                let toml = toml::to_string(&default_config)
+                    .map_err(|why| anyhow::anyhow!("failed to serialize config: {why}"))?;
+                std::fs::write(&config_path, toml)
+                    .map_err(|why| anyhow::anyhow!("failed to write config to {}: {why}", config_path.display()))?;
             }
             // Interactively run the default editor if it is set
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
@@ -208,27 +208,24 @@ fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<
 fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> {
     match cmd {
         ShowOpts::Config => {
-            if cli_data.config_path.is_none() {
-                eprintln!("No configuration file found.");
-                std::process::exit(1);
-            } else {
-                let config_path = cli_data.config_path.clone().unwrap();
-                let config = load_config(config_path).unwrap_or_default();
-                let rules = config.rules().into_iter().collect::<Vec<_>>();
-                if rules.is_empty() {
-                    eprintln!("No configuration data found");
-                    std::process::exit(1);
-                } else {
-                    let mut shown = vec![];
-                    for (commit_type, bump_rule) in rules {
-                        if shown.contains(&commit_type) {
-                            continue;
-                        }
-                        shown.push(commit_type.to_owned());
-                        if bump_rule != BumpRule::NoBump {
-                            println!("{commit_type:?} -> {bump_rule:?}");
-                        }
-                    }
+            let config_path = cli_data
+                .config_path
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("no configuration file found"))?;
+            let config = load_config(config_path)
+                .map_err(|why| anyhow::anyhow!("failed to load config {}: {why}", config_path.display()))?;
+            let rules = config.rules().into_iter().collect::<Vec<_>>();
+            if rules.is_empty() {
+                return Err(anyhow::anyhow!("no configuration rules found in {}", config_path.display()));
+            }
+            let mut shown = vec![];
+            for (commit_type, bump_rule) in rules {
+                if shown.contains(&commit_type) {
+                    continue;
+                }
+                shown.push(commit_type.to_owned());
+                if bump_rule != BumpRule::NoBump {
+                    println!("{commit_type:?} -> {bump_rule:?}");
                 }
             }
             Ok(())

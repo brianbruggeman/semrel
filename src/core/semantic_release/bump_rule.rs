@@ -53,15 +53,11 @@ impl FromStr for BumpRule {
     }
 }
 
-impl From<&str> for BumpRule {
-    fn from(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "major" | "M" | "3" | "+++" => BumpRule::Major,
-            "minor" | "m" | "2" | "++" => BumpRule::Minor,
-            "bump" | "patch" | "p" | "y" | "+" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => BumpRule::Patch,
-            "nobump" | "none" | "n" | "no" | "-" | "false" | "f" | "d" | "disable" | "off" | "0" => BumpRule::NoBump,
-            _ => BumpRule::Notset,
-        }
+impl TryFrom<&str> for BumpRule {
+    type Error = BumpRuleParse;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        s.parse()
     }
 }
 
@@ -172,8 +168,8 @@ mod issue_tests {
 
     #[test]
     fn from_ref_str_case_m_is_minor_not_major() {
-        let from_upper: BumpRule = "M".into();
-        let from_lower: BumpRule = "m".into();
+        let from_upper: BumpRule = "M".try_into().unwrap();
+        let from_lower: BumpRule = "m".try_into().unwrap();
         assert_eq!(from_upper, from_lower);
         assert_eq!(from_upper, BumpRule::Minor);
         assert_ne!(from_upper, BumpRule::Major);

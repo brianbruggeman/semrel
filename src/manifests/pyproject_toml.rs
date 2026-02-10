@@ -83,7 +83,7 @@ impl Default for PyProjectToml {
             name = "pep621-package"
             version = "0.1.0"
         "#;
-        let manifest = toml::from_str(pep621_data).unwrap();
+        let manifest = toml::from_str(pep621_data).expect("hardcoded TOML must be valid");
         Self {
             manifest,
             raw: pep621_data.to_string(),

@@ -64,9 +64,10 @@ impl Manifest for PackageJson {
 
 impl PartialEq for PackageJson {
     fn eq(&self, other: &Self) -> bool {
-        let self_json = to_string(&self.manifest).unwrap_or_default();
-        let other_json = to_string(&other.manifest).unwrap_or_default();
-        self_json == other_json
+        match (to_string(&self.manifest), to_string(&other.manifest)) {
+            (Ok(a), Ok(b)) => a == b,
+            _ => false,
+        }
     }
 }
 

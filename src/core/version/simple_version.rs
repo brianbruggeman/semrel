@@ -131,7 +131,13 @@ impl std::ops::Add<SimpleVersion> for BumpRule {
 
 impl From<&str> for SimpleVersion {
     fn from(value: &str) -> Self {
-        value.parse().unwrap_or_default()
+        match value.parse() {
+            Ok(v) => v,
+            Err(why) => {
+                tracing::warn!("Failed to parse version '{value}': {why}, defaulting to 0.0.0");
+                SimpleVersion::default()
+            }
+        }
     }
 }
 

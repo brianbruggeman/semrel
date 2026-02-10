@@ -44,7 +44,11 @@ impl SupportedManifest {
         let package_json = PackageJson::manifest_filename();
         let cargo_toml = CargoToml::manifest_filename();
         let pyproject_toml = PyProjectToml::manifest_filename();
-        let parsed = match path.file_name().unwrap().to_str().unwrap() {
+        let filename = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .ok_or_else(|| ManifestError::InvalidManifestPath(path.to_path_buf()))?;
+        let parsed = match filename {
             p if p.contains(package_json) => SupportedManifest::Javascript(Box::new(PackageJson::parse(data)?)),
             p if p.contains(cargo_toml) => SupportedManifest::Rust(Box::new(CargoToml::parse(data)?)),
             p if p.contains(pyproject_toml) => SupportedManifest::Python(Box::new(PyProjectToml::parse(data)?)),

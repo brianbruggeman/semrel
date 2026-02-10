@@ -7,7 +7,13 @@ pub const DEFAULT_CONFIG_FILENAME: &str = ".semrel.toml";
 
 pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
     tracing::debug!("Searching for configuration file under: {}", path.as_ref().display());
-    let paths = build_config_paths(path).ok().unwrap_or_default();
+    let paths = match build_config_paths(&path) {
+        Ok(paths) => paths,
+        Err(why) => {
+            tracing::debug!("Could not build config paths for {}: {why}", path.as_ref().display());
+            return None;
+        }
+    };
     let result = paths
         .iter()
         .cloned()
@@ -26,7 +32,13 @@ pub fn find_local_config_path(path: impl AsRef<Path>) -> Option<PathBuf> {
 }
 
 pub fn find_canonical_config_path() -> Option<PathBuf> {
-    let paths = build_canonical_config_paths().ok().unwrap_or_default();
+    let paths = match build_canonical_config_paths() {
+        Ok(paths) => paths,
+        Err(why) => {
+            tracing::debug!("Could not build canonical config paths: {why}");
+            return None;
+        }
+    };
     paths.iter().find(|p| p.exists()).cloned()
 }
 
@@ -84,7 +96,9 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
 
 fn build_config_paths(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigError> {
     let manifest_path = find_manifest(&path)?;
-    let project_path = manifest_path.parent().unwrap();
+    let project_path = manifest_path
+        .parent()
+        .ok_or_else(|| ConfigError::InvalidConfig(format!("manifest path has no parent: {}", manifest_path.display())))?;
     let repo_path = find_top_of_repo(&path)?;
 
     let mut paths = vec![
@@ -100,15 +114,10 @@ fn build_config_paths(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigErro
 fn build_canonical_config_paths() -> Result<Vec<PathBuf>, ConfigError> {
     let xdg_dirs = BaseDirectories::with_prefix("semrel");
 
-    let paths = [
-        // In an XDG compliant configuration directory
-        xdg_dirs.find_config_file("config.toml").unwrap_or_else(|| {
-            // Under $HOME/.config/semrel/config.toml (if $XDG_CONFIG_HOME is not set)
-            dirs::home_dir().unwrap().join(".config/semrel/config.toml")
-        }),
-        // In the system configuration directory
-        PathBuf::from("/etc/semrel/config.toml"),
-    ];
+    let xdg_path = xdg_dirs
+        .find_config_file("config.toml")
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config/semrel/config.toml")))
+        .ok_or_else(|| ConfigError::InvalidConfig("could not determine config directory: no XDG config and no home directory".into()))?;
 
-    Ok(paths.to_vec())
+    Ok(vec![xdg_path, PathBuf::from("/etc/semrel/config.toml")])
 }
