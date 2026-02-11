@@ -6,7 +6,7 @@ use std::str::FromStr;
 use crate::SimpleVersion;
 
 use crate::{
-    ManifestObjectSafe, ManifestStatic,
+    ManifestStatic,
     core::{Manifest, ManifestError},
 };
 
@@ -84,7 +84,7 @@ impl ManifestStatic for CargoToml {
     }
 }
 
-impl ManifestObjectSafe for CargoToml {
+impl Manifest for CargoToml {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
         match &self.manifest.package {
             Some(package) => match package.version.get() {
@@ -119,9 +119,7 @@ impl ManifestObjectSafe for CargoToml {
             .map_err(|why| ManifestError::WriteError(why.to_string()))?;
         Ok(())
     }
-}
 
-impl Manifest for CargoToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::trace!("Parsing Cargo.toml");
         let data = data.as_ref();

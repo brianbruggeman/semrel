@@ -1,7 +1,7 @@
 use core::fmt;
 use std::path::{Path, PathBuf};
 
-use crate::{CargoToml, Manifest, ManifestError, ManifestObjectSafe, ManifestStatic, PackageJson, PyProjectToml, SimpleVersion};
+use crate::{CargoToml, Manifest, ManifestError, ManifestStatic, PackageJson, PyProjectToml, SimpleVersion};
 
 #[derive(Debug)]
 pub enum SupportedManifest {

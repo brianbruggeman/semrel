@@ -4,7 +4,7 @@ use package_json::PackageJson as PkgJson;
 use serde_json::to_string;
 
 use crate::{
-    ManifestObjectSafe, ManifestStatic,
+    ManifestStatic,
     core::{Manifest, ManifestError, SimpleVersion},
 };
 
@@ -30,7 +30,7 @@ impl ManifestStatic for PackageJson {
     }
 }
 
-impl ManifestObjectSafe for PackageJson {
+impl Manifest for PackageJson {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
         let version = self
             .manifest
@@ -51,9 +51,7 @@ impl ManifestObjectSafe for PackageJson {
         std::fs::write(path, data).map_err(|e| ManifestError::WriteError(e.to_string()))?;
         Ok(())
     }
-}
 
-impl Manifest for PackageJson {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::debug!("Parsing package.json");
         let manifest = serde_json::from_str::<PkgJson>(data.as_ref()).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {e}")))?;

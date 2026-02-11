@@ -7,31 +7,21 @@ pub trait ManifestStatic {
     fn manifest_filename() -> &'static str;
 }
 
-pub trait ManifestObjectSafe {
-    fn version(&self) -> Result<SimpleVersion, ManifestError>;
-    fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError>
-    where
-        Self: Sized;
-    fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError>
-    where
-        Self: Sized;
-}
-
-pub trait Manifest: ManifestStatic + ManifestObjectSafe {
-    /// This will attempt to determine the manifest path by
+pub trait Manifest: ManifestStatic {
     fn filename(&self) -> &'static str {
         Self::manifest_filename()
     }
 
-    #[allow(unused_variables)]
+    fn version(&self) -> Result<SimpleVersion, ManifestError>;
+
+    fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError>;
+
+    fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError>;
+
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError>
     where
         Self: Sized;
 
-    /// This will attempt to determine the manifest path by:
-    ///   - checking if the path is the manifest file
-    ///   - checking if the path is a folder containing the manifest file
-    ///   - checking if the path is within a repository containing the manifest file
     fn find(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError>
     where
         Self: Sized,

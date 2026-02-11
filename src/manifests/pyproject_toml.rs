@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use crate::{
     ManifestStatic,
-    core::{Manifest, ManifestError, ManifestObjectSafe, SimpleVersion},
+    core::{Manifest, ManifestError, SimpleVersion},
 };
 
 #[derive(Debug)]
@@ -95,7 +95,7 @@ impl ManifestStatic for PyProjectToml {
     }
 }
 
-impl ManifestObjectSafe for PyProjectToml {
+impl Manifest for PyProjectToml {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
         if let Some(version) = self.get_pep621_version()? {
             return Ok(version);
@@ -128,9 +128,7 @@ impl ManifestObjectSafe for PyProjectToml {
         }
         std::fs::write(path.into(), doc.to_string()).map_err(|why| ManifestError::WriteError(why.to_string()))
     }
-}
 
-impl Manifest for PyProjectToml {
     fn parse(data: impl AsRef<str>) -> Result<Self, ManifestError> {
         tracing::debug!("Parsing pyproject.toml");
         let raw = data.as_ref().to_string();
