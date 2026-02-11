@@ -154,10 +154,8 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn handle_update(cli_data: &CliData) -> anyhow::Result<()> {
-    let manifest_data = std::fs::read(&cli_data.manifest_path)
-        .map_err(|why| anyhow::anyhow!("failed to read manifest {}: {why}", cli_data.manifest_path.display()))?;
-    let data = String::from_utf8(manifest_data)
-        .map_err(|why| anyhow::anyhow!("manifest {} is not valid UTF-8: {why}", cli_data.manifest_path.display()))?;
+    let manifest_data = std::fs::read(&cli_data.manifest_path).map_err(|why| anyhow::anyhow!("failed to read manifest {}: {why}", cli_data.manifest_path.display()))?;
+    let data = String::from_utf8(manifest_data).map_err(|why| anyhow::anyhow!("manifest {} is not valid UTF-8: {why}", cli_data.manifest_path.display()))?;
     let mut supported_manifest = SupportedManifest::parse(&cli_data.manifest_path, data)?;
     supported_manifest.set_version(cli_data.new_version)?;
     supported_manifest.write(&cli_data.manifest_path)?;
@@ -189,10 +187,8 @@ fn handle_config_command(cmd: ConfigOpts, cli_data: &CliData) -> anyhow::Result<
             if needs_write {
                 let mut default_config = SemRelConfig::default();
                 default_config.extend_rules(&cli_data.rules);
-                let toml = toml::to_string(&default_config)
-                    .map_err(|why| anyhow::anyhow!("failed to serialize config: {why}"))?;
-                std::fs::write(&config_path, toml)
-                    .map_err(|why| anyhow::anyhow!("failed to write config to {}: {why}", config_path.display()))?;
+                let toml = toml::to_string(&default_config).map_err(|why| anyhow::anyhow!("failed to serialize config: {why}"))?;
+                std::fs::write(&config_path, toml).map_err(|why| anyhow::anyhow!("failed to write config to {}: {why}", config_path.display()))?;
             }
             // Interactively run the default editor if it is set
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
@@ -212,8 +208,7 @@ fn handle_show_command(cmd: ShowOpts, cli_data: &CliData) -> anyhow::Result<()> 
                 .config_path
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("no configuration file found"))?;
-            let config = load_config(config_path)
-                .map_err(|why| anyhow::anyhow!("failed to load config {}: {why}", config_path.display()))?;
+            let config = load_config(config_path).map_err(|why| anyhow::anyhow!("failed to load config {}: {why}", config_path.display()))?;
             let rules = config.rules().into_iter().collect::<Vec<_>>();
             if rules.is_empty() {
                 return Err(anyhow::anyhow!("no configuration rules found in {}", config_path.display()));
