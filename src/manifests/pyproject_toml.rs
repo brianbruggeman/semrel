@@ -45,34 +45,32 @@ impl PyProjectToml {
         false
     }
 
-    fn get_pep621_version(&self) -> Option<SimpleVersion> {
+    fn get_pep621_version(&self) -> Result<Option<SimpleVersion>, ManifestError> {
         if let Some(project) = &self.manifest.get("project") {
             if let Some(version) = project.get("version") {
                 if let Some(version_str) = version.as_str() {
-                    match SimpleVersion::from_str(version_str) {
-                        Ok(version) => return Some(version),
-                        Err(_) => return None,
-                    }
+                    return SimpleVersion::from_str(version_str)
+                        .map(Some)
+                        .map_err(ManifestError::InvalidManifestVersion);
                 }
             }
         }
-        None
+        Ok(None)
     }
 
-    fn get_poetry_version(&self) -> Option<SimpleVersion> {
+    fn get_poetry_version(&self) -> Result<Option<SimpleVersion>, ManifestError> {
         if let Some(tool) = &self.manifest.get("tool") {
             if let Some(poetry) = tool.get("poetry") {
                 if let Some(version) = poetry.get("version") {
                     if let Some(version_str) = version.as_str() {
-                        match SimpleVersion::from_str(version_str) {
-                            Ok(version) => return Some(version),
-                            Err(_) => return None,
-                        }
+                        return SimpleVersion::from_str(version_str)
+                            .map(Some)
+                            .map_err(ManifestError::InvalidManifestVersion);
                     }
                 }
             }
         }
-        None
+        Ok(None)
     }
 }
 
@@ -99,10 +97,10 @@ impl ManifestStatic for PyProjectToml {
 
 impl ManifestObjectSafe for PyProjectToml {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
-        if let Some(version) = self.get_pep621_version() {
+        if let Some(version) = self.get_pep621_version()? {
             return Ok(version);
         }
-        if let Some(version) = self.get_poetry_version() {
+        if let Some(version) = self.get_poetry_version()? {
             return Ok(version);
         }
         Err(ManifestError::InvalidManifest("No version found".to_string()))
@@ -240,23 +238,23 @@ mod tests {
         let result = PyProjectToml::parse(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result.manifest, *expected),
-            (Err(_result), Err(_expected)) => {}
+            (Err(result_err), Err(expected_err)) => assert_eq!(result_err.to_string(), expected_err.to_string(), "Error mismatch"),
             _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }
 
     #[rstest]
     #[case::pep621_parse_valid_version("[project]\nversion = \"1.0.0\"", Ok(SimpleVersion::new(1, 0, 0)))]
-    #[case::pep621_parse_invalid_version("[project]\nversion = \"invalid-version\"", Err(ManifestError::InvalidManifest("TOML parse error at line 2, column 11\n  |\n2 | version = \"invalid-version\"\n  |           ^^^^^^^^^^^^^^^^^\nInvalid version part: invalid digit found in string\n".to_string())))]
-    #[case::pep621_parse_missing_version("[project]\nname = \"pep621-package\"", Err(ManifestError::InvalidManifest("TOML parse error at line 1, column 1\n  |\n1 | [project]\n  | ^^^^^^^^^\nmissing field `version`\n".to_string())))]
+    #[case::pep621_parse_invalid_version("[project]\nversion = \"invalid-version\"", Err(ManifestError::InvalidManifestVersion(crate::VersionError::InvalidVersionPart("invalid-version".parse::<u16>().unwrap_err()))))]
+    #[case::pep621_parse_missing_version("[project]\nname = \"pep621-package\"", Err(ManifestError::InvalidManifest("No version found".to_string())))]
     #[case::poetry_parse_valid_version("[tool.poetry]\nversion = \"1.0.0\"", Ok(SimpleVersion::new(1, 0, 0)))]
-    #[case::poetry_parse_invalid_version("[tool.poetry]\nversion = \"invalid-version\"", Err(ManifestError::InvalidManifest("TOML parse error at line 2, column 11\n  |\n2 | version = \"invalid-version\"\n  |           ^^^^^^^^^^^^^^^^^\nInvalid version part: invalid digit found in string\n".to_string())))]
-    #[case::poetry_parse_missing_version("[tool.poetry]\nname = \"poetry-package\"", Err(ManifestError::InvalidManifest("TOML parse error at line 1, column 1\n  |\n1 | [tool.poetry]\n  | ^^^^^^^^^^^^^\nmissing field `version`\n".to_string())))]
+    #[case::poetry_parse_invalid_version("[tool.poetry]\nversion = \"invalid-version\"", Err(ManifestError::InvalidManifestVersion(crate::VersionError::InvalidVersionPart("invalid-version".parse::<u16>().unwrap_err()))))]
+    #[case::poetry_parse_missing_version("[tool.poetry]\nname = \"poetry-package\"", Err(ManifestError::InvalidManifest("No version found".to_string())))]
     fn test_parse_version(#[case] data: &str, #[case] expected: Result<SimpleVersion, ManifestError>) {
         let result = PyProjectToml::parse_version(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
-            (Err(_result), Err(_expected)) => {}
+            (Err(result_err), Err(expected_err)) => assert_eq!(result_err.to_string(), expected_err.to_string(), "Error mismatch"),
             _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }

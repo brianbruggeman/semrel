@@ -36,7 +36,7 @@ impl ManifestObjectSafe for PackageJson {
             .manifest
             .version
             .parse::<SimpleVersion>()
-            .map_err(|e| ManifestError::InvalidManifest(format!("Invalid version part: {e}")))?;
+            .map_err(ManifestError::InvalidManifestVersion)?;
         Ok(version)
     }
 
@@ -159,8 +159,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case::validate_valid_json("{\"name\":\"test\",\"version\":\"1.0.0\"}", SimpleVersion::from_str("1.0.0").map_err(|_| ManifestError::InvalidManifest("Invalid version part: invalid digit found in string at line 1 column 42".to_string())))]
-    #[case::validate_invalid_json("{\"name\":\"test\",\"version\":\"invalid-version\"}", SimpleVersion::from_str("invalid-version").map_err(|_| ManifestError::InvalidManifest("Invalid version part: Invalid version part: invalid digit found in string".to_string())))]
+    #[case::validate_valid_json("{\"name\":\"test\",\"version\":\"1.0.0\"}", SimpleVersion::from_str("1.0.0").map_err(ManifestError::InvalidManifestVersion))]
+    #[case::validate_invalid_json("{\"name\":\"test\",\"version\":\"invalid-version\"}", SimpleVersion::from_str("invalid-version").map_err(ManifestError::InvalidManifestVersion))]
     fn test_parse(#[case] data: &str, #[case] expected: Result<SimpleVersion, crate::ManifestError>) {
         let result = PackageJson::parse(data);
         match &result {
@@ -171,13 +171,13 @@ mod tests {
 
     #[rstest]
     #[case::parse_valid_version("{\"name\":\"test\",\"version\":\"1.0.0\"}", Ok(SimpleVersion::new(1, 0, 0)))]
-    #[case::parse_invalid_version("{\"name\":\"test\",\"version\":\"invalid-version\"}", Err(ManifestError::InvalidManifest("Invalid version part: invalid digit found in string at line 1 column 42".to_string())))]
-    #[case::parse_missing_version("{\"name\":\"test\"}", Err(ManifestError::InvalidManifest("missing field `version` at line 1 column 15".to_string())))]
+    #[case::parse_invalid_version("{\"name\":\"test\",\"version\":\"invalid-version\"}", Err(ManifestError::InvalidManifestVersion(crate::VersionError::InvalidVersionPart("invalid-version".parse::<u16>().unwrap_err()))))]
+    #[case::parse_missing_version("{\"name\":\"test\"}", Err(ManifestError::InvalidManifest("Invalid manifest: missing field `version` at line 1 column 15".to_string())))]
     fn test_parse_version(#[case] data: &str, #[case] expected: Result<SimpleVersion, ManifestError>) {
         let result = PackageJson::parse_version(data);
         match (&result, &expected) {
             (Ok(result), Ok(expected)) => assert_eq!(result, expected),
-            (Err(_result), Err(_expected)) => {}
+            (Err(result_err), Err(expected_err)) => assert_eq!(result_err.to_string(), expected_err.to_string(), "Error mismatch"),
             _ => panic!("{:?} result did not match expected {:?}", result, expected),
         }
     }

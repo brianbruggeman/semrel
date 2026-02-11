@@ -32,8 +32,7 @@ impl CargoToml {
     }
 
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ManifestError> {
-        let data = std::fs::read_to_string(path.as_ref())
-            .map_err(|why| ManifestError::InvalidManifest(format!("failed to read {}: {why}", path.as_ref().display())))?;
+        let data = std::fs::read_to_string(path.as_ref()).map_err(|why| ManifestError::InvalidManifest(format!("failed to read {}: {why}", path.as_ref().display())))?;
         Self::from_str(&data)
     }
 }
@@ -71,7 +70,9 @@ impl Default for CargoToml {
             version = "0.1.0"
         "#
         .as_bytes();
-        let raw = std::str::from_utf8(default_cargo_toml).expect("hardcoded template must be valid UTF-8").to_string();
+        let raw = std::str::from_utf8(default_cargo_toml)
+            .expect("hardcoded template must be valid UTF-8")
+            .to_string();
         let manifest = cargo_toml::Manifest::from_slice(default_cargo_toml).expect("hardcoded Cargo.toml template must be valid");
         Self { manifest, raw }
     }
@@ -92,7 +93,7 @@ impl ManifestObjectSafe for CargoToml {
                         tracing::trace!("package: {:?}", package);
                     }
                     SimpleVersion::from_str(version.as_ref())
-                        .map_err(|why| ManifestError::InvalidManifest(why.to_string()))
+                        .map_err(ManifestError::InvalidManifestVersion)
                         .map(|version| match version == SimpleVersion::new(0, 0, 0) {
                             true => Err(ManifestError::InvalidManifest("Invalid version".to_string())),
                             false => Ok(version),
@@ -236,10 +237,10 @@ mod tests {
         match (&result, expected.as_ref()) {
             (Ok(result), Ok(expected_toml)) => match (&result.version(), expected_toml.version()) {
                 (Ok(result_version), Ok(expected_version)) => assert_eq!(*result_version, expected_version, "Expected {expected:?} but got {result:?}"),
-                (Err(_result), Err(_expected)) => {}
+                (Err(result_err), Err(expected_err)) => assert_eq!(result_err.to_string(), expected_err.to_string(), "Error mismatch"),
                 _ => panic!("Expected {expected:?} but got {result:?}"),
             },
-            (Err(_result), Err(_expected)) => {}
+            (Err(result_err), Err(expected_err)) => assert_eq!(result_err.to_string(), expected_err.to_string(), "Error mismatch"),
             (Ok(result), Err(_expected_version_error)) => match result.version() {
                 Err(_result_version_error) => {}
                 _ => panic!("Expected {expected:?} but got {result:?}"),
@@ -250,13 +251,22 @@ mod tests {
 
     #[rstest]
     #[case::parse_valid_version("[package]\nname = \"test\"\nversion = \"1.0.0\"\n", Ok(SimpleVersion::new(1, 0, 0)))]
-    #[case::parse_invalid_version("[package]\nname = \"test\"\nversion = \"invalid-version\"\n", Err(ManifestError::InvalidManifest("TOML parse error at line 3, column 11\n  |\n3 | version = \"invalid-version\"\n  |           ^^^^^^^^^^^^^^^^^\nInvalid version part: invalid digit found in string\n".to_string())))]
-    #[case::parse_missing_version("[package]\nname = \"test\"\n", Err(ManifestError::InvalidManifest("TOML parse error at line 1, column 1\n  |\n1 | [package]\n  | ^^^^^^^^^\nmissing field `version`\n".to_string())))]
+    #[case::parse_invalid_version("[package]\nname = \"test\"\nversion = \"invalid-version\"\n", Err(ManifestError::InvalidManifestVersion(crate::VersionError::InvalidVersionPart("invalid-version".parse::<u16>().unwrap_err()))))]
+    #[case::parse_missing_version("[package]\nname = \"test\"\n", Err(ManifestError::InvalidManifest("Invalid version".to_string())))]
     fn test_parse_version(#[case] data: &str, #[case] expected: Result<SimpleVersion, ManifestError>) {
-        let result = CargoToml::parse(data).expect("Failed to parse Cargo.toml");
+        let parse_result = CargoToml::parse(data);
+        match (&parse_result, &expected) {
+            (Err(parse_err), Err(expected_err)) => {
+                assert_eq!(parse_err.to_string(), expected_err.to_string(), "Parse error mismatch");
+                return;
+            }
+            (Err(parse_err), _) => panic!("Failed to parse Cargo.toml: {parse_err}"),
+            _ => {}
+        }
+        let result = parse_result.unwrap();
         match (&result.version(), &expected.as_ref()) {
             (Ok(result), Ok(expected)) => assert_eq!(result, *expected, "Expected {expected:?} but got {result:?}"),
-            (Err(_result), Err(_expected)) => {}
+            (Err(result_err), Err(expected_err)) => assert_eq!(result_err.to_string(), expected_err.to_string(), "Version error mismatch"),
             (Ok(result), Err(_)) => panic!("\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
             _ => panic!("\n\nresult: {result:?}\nresult did not match expected\nExpected: {expected:?}\n\n"),
         }
