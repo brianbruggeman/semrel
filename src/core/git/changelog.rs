@@ -574,18 +574,18 @@ mod tests {
 
         fn generate_changelog(&self, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
             let manifest_path = crate::find_manifest(&self.path)?;
-            get_changelog(&self.test_repo.repo, manifest_path, &rules)
+            get_changelog(&self.test_repo.repo, manifest_path, rules)
         }
 
         fn generate_next_version(&self, rules: &[(CommitType, BumpRule)]) -> Result<SimpleVersion, RepositoryError> {
             let manifest_path = crate::find_manifest(&self.path)?;
-            let changelog = get_changelog(&self.test_repo.repo, manifest_path, &rules)?;
-            Ok(changelog.next_version(&rules))
+            let changelog = get_changelog(&self.test_repo.repo, manifest_path, rules)?;
+            Ok(changelog.next_version(rules))
         }
 
         fn generate_log_messages(&self, rules: &[(CommitType, BumpRule)]) -> Result<Vec<String>, RepositoryError> {
             let manifest_path = crate::find_manifest(&self.path)?;
-            let changelog = get_changelog(&self.test_repo.repo, manifest_path, &rules)?;
+            let changelog = get_changelog(&self.test_repo.repo, manifest_path, rules)?;
             let log_messages = changelog.changes.iter().map(|v| v.commit.message()).collect::<Vec<_>>();
             Ok(log_messages)
         }
@@ -970,7 +970,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::enum_variant_names)]
     pub enum CurrentVersion {
         NoVersion,    // 0.0.0 - no previous releases
         PatchVersion, // 0.0.1 - at a patch version
