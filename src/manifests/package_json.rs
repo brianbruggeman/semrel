@@ -48,7 +48,7 @@ impl ManifestObjectSafe for PackageJson {
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
         let path = path.into();
         let data = serde_json::to_string_pretty(&self.manifest).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {e}")))?;
-        std::fs::write(path, data).map_err(|e| ManifestError::InvalidManifest(format!("Invalid manifest: {e}")))?;
+        std::fs::write(path, data).map_err(|e| ManifestError::WriteError(e.to_string()))?;
         Ok(())
     }
 }
