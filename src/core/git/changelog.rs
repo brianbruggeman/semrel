@@ -21,8 +21,8 @@ pub fn collect_changelog_commits_streaming(
     let walker = revwalk(repo, manifest_path)?;
 
     for oid_result in walker {
-        let oid = match oid_result {
-            Ok(oid) => oid,
+        let (oid, files_changed) = match oid_result {
+            Ok(pair) => pair,
             Err(why) => {
                 tracing::warn!("Skipping unreadable commit: {why}");
                 continue;
@@ -33,7 +33,6 @@ pub fn collect_changelog_commits_streaming(
             .map_err(|_| RepositoryError::CommitNotFound(oid.to_string()))?;
 
         let conventional_commit = ConventionalCommit::try_from(commit.message().unwrap_or_default())?;
-        let files_changed = get_files_changed(repo, oid)?;
         let timestamp = commit.time().seconds();
         let timestamp = timestamp.max(0) as u64;
         let commit_info = CommitInfo::new(oid.to_string(), files_changed, conventional_commit, timestamp);
@@ -279,7 +278,7 @@ fn get_files_changed(repo: &git2::Repository, oid: impl Into<git2::Oid>) -> Resu
 }
 
 #[allow(clippy::needless_lifetimes)]
-pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>) -> Result<impl IntoIterator<Item = Result<Oid, RepositoryError>> + 'a, RepositoryError> {
+pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>) -> Result<impl IntoIterator<Item = Result<(Oid, Vec<PathBuf>), RepositoryError>> + 'a, RepositoryError> {
     let project_path = project_path.into();
     let repo_path = find_top_of_repo(&project_path)?;
     let canonical = project_path
@@ -314,14 +313,14 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
 
     let data = revwalk
         .map(|oid| oid.map_err(|why| RepositoryError::InvalidRepository(why.to_string())))
-        .map(move |oid_result| -> Result<Option<Oid>, RepositoryError> {
+        .map(move |oid_result| -> Result<Option<(Oid, Vec<PathBuf>)>, RepositoryError> {
             let oid = oid_result?;
             let files = get_files_changed(repo, oid)?;
             if files.is_empty() {
                 return Ok(None);
             }
             let matched = files.iter().any(|file| repo_path.join(file).starts_with(&project_path));
-            Ok(matched.then_some(oid))
+            Ok(matched.then_some((oid, files)))
         })
         .filter_map(|result| result.transpose());
     Ok(data)
@@ -764,7 +763,7 @@ mod tests {
     fn case_single_commit() {
         let test_repo = TestRepo::new();
         test_repo.commit("Initial commit").expect("Failed to commit");
-        let result: Vec<Oid> = revwalk(&test_repo.repo, test_repo.path())
+        let result: Vec<(Oid, Vec<PathBuf>)> = revwalk(&test_repo.repo, test_repo.path())
             .expect("Could not revwalk")
             .into_iter()
             .collect::<Result<Vec<_>, _>>()
@@ -776,14 +775,14 @@ mod tests {
     fn case_multiple_commits() {
         let test_repo = TestRepo::new();
         test_repo.commit("Initial commit").expect("Failed to commit");
-        let result: Vec<Oid> = revwalk(&test_repo.repo, test_repo.path())
+        let result: Vec<(Oid, Vec<PathBuf>)> = revwalk(&test_repo.repo, test_repo.path())
             .expect("Could not revwalk")
             .into_iter()
             .collect::<Result<Vec<_>, _>>()
             .expect("Could not collect revwalk");
         assert_eq!(result.len(), 0, "Expected no commits in the revwalk");
         test_repo.commit("Another commit").expect("Failed to commit");
-        let result: Vec<Oid> = revwalk(&test_repo.repo, test_repo.path())
+        let result: Vec<(Oid, Vec<PathBuf>)> = revwalk(&test_repo.repo, test_repo.path())
             .expect("Could not revwalk")
             .into_iter()
             .collect::<Result<Vec<_>, _>>()

@@ -107,12 +107,8 @@ impl TryFrom<PathBuf> for SupportedManifest {
             }
             Err(ManifestError::InvalidManifestPath(value))
         } else if value.is_file() {
-            if value.exists() {
-                let data = std::fs::read_to_string(&value).map_err(|_| ManifestError::InvalidManifestPath(value.clone()))?;
-                SupportedManifest::parse(value, data)
-            } else {
-                Err(ManifestError::InvalidManifestPath(value))
-            }
+            let data = std::fs::read_to_string(&value).map_err(|_| ManifestError::InvalidManifestPath(value.clone()))?;
+            SupportedManifest::parse(value, data)
         } else {
             Err(ManifestError::InvalidManifestPath(value))
         }
