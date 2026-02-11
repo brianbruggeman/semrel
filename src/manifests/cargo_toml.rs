@@ -88,17 +88,7 @@ impl ManifestObjectSafe for CargoToml {
     fn version(&self) -> Result<SimpleVersion, ManifestError> {
         match &self.manifest.package {
             Some(package) => match package.version.get() {
-                Ok(version) => {
-                    if version == "1.0.0" {
-                        tracing::trace!("package: {:?}", package);
-                    }
-                    SimpleVersion::from_str(version.as_ref())
-                        .map_err(ManifestError::InvalidManifestVersion)
-                        .map(|version| match version == SimpleVersion::new(0, 0, 0) {
-                            true => Err(ManifestError::InvalidManifest("Invalid version".to_string())),
-                            false => Ok(version),
-                        })?
-                }
+                Ok(version) => SimpleVersion::from_str(version.as_ref()).map_err(ManifestError::InvalidManifestVersion),
                 Err(why) => Err(ManifestError::InvalidManifest(why.to_string())),
             },
             None => Err(ManifestError::InvalidManifest("Missing package".to_string())),
@@ -231,7 +221,7 @@ mod tests {
     #[rstest]
     #[case::validate_valid_version("[package]\nname = \"test\"\nversion = \"1.0.0\"\n", Ok(CargoToml::new("1.0.0")))]
     #[case::validate_invalid_version("[package]\nname = \"test\"\nversion = \"invalid-version\"\n", Err(ManifestError::InvalidManifest("Invalid manifest: Invalid version part: invalid digit found in string at line 1 column 37".to_string())))]
-    #[case::parse_missing_version("[package]\nname = \"test\"\n", Err(ManifestError::InvalidManifest("TOML parse error at line 1, column 1\n  |\n1 | [package]\n  | ^^^^^^^^^\nmissing field `version`\n".to_string())))]
+    #[case::parse_missing_version("[package]\nname = \"test\"\n", Ok(CargoToml::new("0.0.0")))]
     fn test_parse(#[case] data: &str, #[case] expected: Result<CargoToml, ManifestError>) {
         let result = CargoToml::parse(data);
         match (&result, expected.as_ref()) {
@@ -252,7 +242,7 @@ mod tests {
     #[rstest]
     #[case::parse_valid_version("[package]\nname = \"test\"\nversion = \"1.0.0\"\n", Ok(SimpleVersion::new(1, 0, 0)))]
     #[case::parse_invalid_version("[package]\nname = \"test\"\nversion = \"invalid-version\"\n", Err(ManifestError::InvalidManifestVersion(crate::VersionError::InvalidVersionPart("invalid-version".parse::<u16>().unwrap_err()))))]
-    #[case::parse_missing_version("[package]\nname = \"test\"\n", Err(ManifestError::InvalidManifest("Invalid version".to_string())))]
+    #[case::parse_missing_version("[package]\nname = \"test\"\n", Ok(SimpleVersion::new(0, 0, 0)))]
     fn test_parse_version(#[case] data: &str, #[case] expected: Result<SimpleVersion, ManifestError>) {
         let parse_result = CargoToml::parse(data);
         match (&parse_result, &expected) {
