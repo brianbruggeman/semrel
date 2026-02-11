@@ -45,15 +45,11 @@ impl ConventionalCommit {
                 Rule::scope => commit.scope = ConventionalCommit::parse_scope(inner)?,
                 Rule::subject => commit.subject = ConventionalCommit::parse_subject(inner)?,
                 Rule::section => {
-                    let (body, footer) = inner
-                        .as_str()
-                        .split("\n\n")
-                        .fold((vec![], String::new()), |(mut body, footer), new_block| {
-                            body.push(footer);
-                            (body, new_block.to_string())
-                        });
+                    let blocks: Vec<&str> = inner.as_str().split("\n\n").collect();
+                    let footer = blocks.last().unwrap_or(&"").to_string();
+                    let body = blocks[..blocks.len().saturating_sub(1)].join("\n\n");
                     if !body.is_empty() {
-                        commit.body = Some(body.join("\n\n"));
+                        commit.body = Some(body);
                     }
                     if !footer.is_empty() {
                         commit.footer = Some(footer);
@@ -103,7 +99,23 @@ impl ConventionalCommit {
     fn finalize_commit(commit: &mut ConventionalCommit) {
         if commit.commit_type == CommitType::Unknown && commit.scope.is_none() && !commit.subject.is_empty() {
             commit.commit_type = CommitType::NonCompliant;
-            tracing::debug!("Setting commit type to {:?} because it was not recognized. [message='{}']", commit.commit_type, commit.message());
+        }
+        if commit.breaking_change {
+            return;
+        }
+        if let Some(footer) = &commit.footer {
+            if let Some(rest) = footer.strip_prefix("BREAKING CHANGE:") {
+                commit.footer = Some(rest.trim_start().to_string());
+                commit.breaking_change = true;
+                return;
+            }
+            if footer.starts_with("BREAKING CHANGE") {
+                commit.breaking_change = true;
+                return;
+            }
+        }
+        if let Some(body) = &commit.body {
+            commit.breaking_change = body.split("\n\n").any(|p| p.starts_with("BREAKING CHANGE"));
         }
     }
 
@@ -236,7 +248,7 @@ mod tests {
         "chore",
         "package",
         "upgrade ruff (#4031)",
-        "\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting",
+        "* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting",
         "* chore(ci): update ci to use ruff format",
         false
     )]
@@ -247,6 +259,33 @@ mod tests {
         "add commit message parser",
         "",
         "this is a breaking change",
+        true
+    )]
+    #[case::breaking_change_footer_with_body(
+        "feat: add API endpoint\n\nSome implementation details\n\nBREAKING CHANGE: removed old endpoint",
+        "feat",
+        "",
+        "add API endpoint",
+        "Some implementation details",
+        "removed old endpoint",
+        true
+    )]
+    #[case::breaking_change_footer_with_multipart_body(
+        "feat: redesign\n\nFirst paragraph\n\nSecond paragraph\n\nBREAKING CHANGE: old API removed",
+        "feat",
+        "",
+        "redesign",
+        "First paragraph\n\nSecond paragraph",
+        "old API removed",
+        true
+    )]
+    #[case::breaking_change_shorthand_with_body(
+        "feat!: add API endpoint\n\nSome body text\n\nSome footer",
+        "feat",
+        "",
+        "add API endpoint",
+        "Some body text",
+        "Some footer",
         true
     )]
     fn test_commit_message_parser(
