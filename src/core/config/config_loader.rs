@@ -47,7 +47,6 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
     if path.as_ref().is_file() {
         tracing::debug!("Loading configuration path: {}", path.as_ref().display());
         let data = std::fs::read_to_string(&path).map_err(|e| ConfigError::InvalidConfig(e.to_string()))?;
-        tracing::debug!("Loaded data for configuration path: {}", path.as_ref().display());
         let config: SemRelConfig = match toml::from_str(&data) {
             Ok(config) => config,
             Err(why) => {
@@ -55,8 +54,10 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<SemRelConfig, ConfigError> 
                 return Err(ConfigError::InvalidConfig(why.to_string()));
             }
         };
-        tracing::debug!("Built config data for configuration path: {}", path.as_ref().display());
-        tracing::trace!("Config = {:?}", config);
+        let rules = config.rules().into_iter().collect::<Vec<_>>();
+        if rules.is_empty() {
+            return Err(ConfigError::EmptyConfig(path.as_ref().to_path_buf()));
+        }
         Ok(config)
     } else {
         let path = match find_local_config_path(path).or_else(find_canonical_config_path) {
@@ -103,12 +104,17 @@ fn build_config_paths(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigErro
 
     let mut paths = vec![
         // Next to the manifest file
-        project_path.with_file_name(DEFAULT_CONFIG_FILENAME),
+        project_path.join(DEFAULT_CONFIG_FILENAME),
         // At the root of the project
         repo_path.join(DEFAULT_CONFIG_FILENAME),
     ];
     paths.extend(build_canonical_config_paths()?);
     Ok(paths)
+}
+
+#[cfg(test)]
+fn build_config_paths_public(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, ConfigError> {
+    build_config_paths(path)
 }
 
 fn build_canonical_config_paths() -> Result<Vec<PathBuf>, ConfigError> {
@@ -120,4 +126,43 @@ fn build_canonical_config_paths() -> Result<Vec<PathBuf>, ConfigError> {
         .ok_or_else(|| ConfigError::InvalidConfig("could not determine config directory: no XDG config and no home directory".into()))?;
 
     Ok(vec![xdg_path, PathBuf::from("/etc/semrel/config.toml")])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_path_is_inside_project_dir() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path();
+        std::fs::write(project.join("Cargo.toml"), "[package]\nversion = \"0.1.0\"").unwrap();
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(project)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(project)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["commit", "-m", "init", "--allow-empty"])
+            .current_dir(project)
+            .env("GIT_AUTHOR_NAME", "test")
+            .env("GIT_AUTHOR_EMAIL", "test@test.com")
+            .env("GIT_COMMITTER_NAME", "test")
+            .env("GIT_COMMITTER_EMAIL", "test@test.com")
+            .output()
+            .unwrap();
+
+        let paths = build_config_paths_public(project).unwrap();
+        let first = &paths[0];
+        assert!(
+            first.starts_with(project),
+            "config path {first:?} should be inside project dir {project:?}"
+        );
+        assert_eq!(first.file_name().unwrap(), DEFAULT_CONFIG_FILENAME);
+    }
 }
