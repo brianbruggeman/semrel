@@ -1,21 +1,44 @@
+const GIT_HEADER_PREFIXES: &[&str] = &[
+    "author",
+    "co-authored-by",
+    "change-id",
+    "commit",
+    "committer",
+    "date",
+    "merge",
+    "parent",
+    "reviewed-by",
+    "tree",
+];
+
+fn is_git_header(line: &str) -> bool {
+    let lower = line.trim().to_ascii_lowercase();
+    GIT_HEADER_PREFIXES.iter().any(|&prefix| lower.starts_with(prefix))
+}
+
 pub fn prune_message(message: impl AsRef<str>) -> String {
+    let mut past_preamble = false;
     message
         .as_ref()
         .lines()
         .filter(|line| {
-            let please_ignore = ["author", "co-authored-by", "change-id", "commit", "committer", "date", "merge", "parent", "reviewed-by", "tree"]
-                .iter()
-                .any(|&prefix| line.trim().to_ascii_lowercase().starts_with(prefix));
-            // There could be a bunch of preamble here, but we're only interested in the conventional commit lines
-            if please_ignore {
-                tracing::debug!("Pruning: {line:?}");
+            if past_preamble {
+                return true;
             }
-            !please_ignore
+            if line.trim().is_empty() {
+                return true;
+            }
+            if is_git_header(line) {
+                tracing::debug!("Pruning: {line:?}");
+                return false;
+            }
+            past_preamble = true;
+            true
         })
-        .map(|line| line.trim()) // make sure we can effectively trim empty lines around conventional commit lines
+        .map(|line| line.trim())
         .collect::<Vec<_>>()
         .join("\n")
-        .trim() // sometimes there are newlines before the first conventional commit line that are empty
+        .trim()
         .to_string()
 }
 
@@ -37,6 +60,9 @@ mod tests {
     #[case::reviewed_by("reviewed-by: John Doe\n\nchore: test the reviewed-by", "chore: test the reviewed-by")]
     #[case::tree("tree: 1234567890\n\nchore: test the tree", "chore: test the tree")]
     #[case::spaced_header("           chore: test the spaced header", "chore: test the spaced header")]
+    #[case::body_with_merge("chore: test\n\nMerge the two modules", "chore: test\n\nMerge the two modules")]
+    #[case::body_with_date("feat: thing\n\nDate format was wrong", "feat: thing\n\nDate format was wrong")]
+    #[case::body_with_commit("fix: bug\n\nCommit to quality", "fix: bug\n\nCommit to quality")]
     fn test_prune_message(#[case] input: &str, #[case] expected: &str) {
         let result = prune_message(input);
         assert_eq!(result, expected);
