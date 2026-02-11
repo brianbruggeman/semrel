@@ -43,9 +43,14 @@ impl FromStr for BumpRule {
     type Err = BumpRuleParse;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "M" | "+++" | "3" => return Ok(BumpRule::Major),
+            "++" | "2" => return Ok(BumpRule::Minor),
+            _ => {}
+        }
         match s.to_lowercase().as_str() {
-            "major" | "M" | "3" | "+++" => Ok(BumpRule::Major),
-            "minor" | "m" | "2" | "++" => Ok(BumpRule::Minor),
+            "major" => Ok(BumpRule::Major),
+            "minor" | "m" => Ok(BumpRule::Minor),
             "bump" | "patch" | "p" | "y" | "+" | "yes" | "true" | "t" | "e" | "enable" | "on" | "1" => Ok(BumpRule::Patch),
             "nobump" | "none" | "n" | "no" | "-" | "false" | "f" | "d" | "disable" | "off" | "0" => Ok(BumpRule::NoBump),
             _ => Err(BumpRuleParse::ParseError(s.to_owned(), "Did not match".to_string())),
@@ -154,24 +159,20 @@ mod issue_tests {
     }
 
     #[test]
-    fn from_str_case_m_is_minor_not_major() {
-        // to_lowercase() is applied before matching, so "M" becomes "m"
-        // which matches the minor arm, not the major arm.
-        // The "M" pattern for major is unreachable dead code.
+    fn from_str_case_m_is_major_lowercase_m_is_minor() {
         let from_upper_m = <BumpRule as std::str::FromStr>::from_str("M").unwrap();
         let from_lower_m = <BumpRule as std::str::FromStr>::from_str("m").unwrap();
-        assert_eq!(from_upper_m, from_lower_m);
-        // Both resolve to Minor; there is no way to get Major via "M"
-        assert_eq!(from_upper_m, BumpRule::Minor);
-        assert_ne!(from_upper_m, BumpRule::Major);
+        assert_eq!(from_upper_m, BumpRule::Major);
+        assert_eq!(from_lower_m, BumpRule::Minor);
+        assert_ne!(from_upper_m, from_lower_m);
     }
 
     #[test]
-    fn from_ref_str_case_m_is_minor_not_major() {
+    fn from_ref_str_case_m_is_major_lowercase_m_is_minor() {
         let from_upper: BumpRule = "M".try_into().unwrap();
         let from_lower: BumpRule = "m".try_into().unwrap();
-        assert_eq!(from_upper, from_lower);
-        assert_eq!(from_upper, BumpRule::Minor);
-        assert_ne!(from_upper, BumpRule::Major);
+        assert_eq!(from_upper, BumpRule::Major);
+        assert_eq!(from_lower, BumpRule::Minor);
+        assert_ne!(from_upper, from_lower);
     }
 }
