@@ -1,5 +1,5 @@
 # Specifies which edition is used by the parser.
-edition = "2018"
+edition = "2024"
 
 # Maximum width of each line [default: 100]
 # See: https://rust-lang.github.io/rustfmt/?version=master&search=#max_width
