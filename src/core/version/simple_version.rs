@@ -24,18 +24,18 @@ impl SimpleVersion {
     }
 
     pub fn increment_major(&mut self) {
-        self.major += 1;
+        self.major = self.major.saturating_add(1);
         self.minor = 0;
         self.patch = 0;
     }
 
     pub fn increment_minor(&mut self) {
-        self.minor += 1;
+        self.minor = self.minor.saturating_add(1);
         self.patch = 0;
     }
 
     pub fn increment_patch(&mut self) {
-        self.patch += 1;
+        self.patch = self.patch.saturating_add(1);
     }
 
     pub fn major(&self) -> Ver {
@@ -205,5 +205,26 @@ mod tests {
         assert_eq!(version.minor(), minor);
         assert_eq!(version.patch(), patch);
         assert_eq!(version.to_string(), expected.as_ref());
+    }
+
+    #[test]
+    fn increment_major_saturates_at_u16_max() {
+        let mut v = SimpleVersion::new(u16::MAX, 5, 5);
+        v.increment_major();
+        assert_eq!(v, SimpleVersion::new(u16::MAX, 0, 0));
+    }
+
+    #[test]
+    fn increment_minor_saturates_at_u16_max() {
+        let mut v = SimpleVersion::new(1, u16::MAX, 5);
+        v.increment_minor();
+        assert_eq!(v, SimpleVersion::new(1, u16::MAX, 0));
+    }
+
+    #[test]
+    fn increment_patch_saturates_at_u16_max() {
+        let mut v = SimpleVersion::new(1, 2, u16::MAX);
+        v.increment_patch();
+        assert_eq!(v, SimpleVersion::new(1, 2, u16::MAX));
     }
 }
