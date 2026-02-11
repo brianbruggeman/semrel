@@ -7,7 +7,9 @@ use num_traits::AsPrimitive;
 use serde::Deserialize;
 use serde::de::{self, Deserializer, Visitor};
 
-use super::{Ver, VersionError};
+use super::VersionError;
+
+pub type Ver = u16;
 use crate::BumpRule;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, Hash, serde::Serialize)]

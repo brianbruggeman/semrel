@@ -18,14 +18,6 @@ impl BumpRuleConfig {
         self.rules.is_empty()
     }
 
-    pub fn add(&mut self, commit_type: CommitType, bump_rule: BumpRule) {
-        self.rules.insert(commit_type, bump_rule);
-    }
-
-    pub fn remove(&mut self, commit_type: CommitType) {
-        self.rules.remove(&commit_type);
-    }
-
     pub fn extend(&mut self, rules: &[(CommitType, BumpRule)]) {
         self.rules.extend(rules.iter().cloned());
     }

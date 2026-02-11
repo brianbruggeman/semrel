@@ -49,23 +49,8 @@ impl CommitInfo {
         self.files.iter().any(|f| f == file.as_ref())
     }
 
-    pub fn with_id(mut self, id: impl Into<String>) -> Self {
-        self.id = id.into();
-        self
-    }
-
-    pub fn with_commit(mut self, commit: impl Into<ConventionalCommit>) -> Self {
-        self.commit = commit.into();
-        self
-    }
-
     pub fn add_file(mut self, file: impl AsRef<Path>) -> Self {
         self.files.push(file.as_ref().to_path_buf());
-        self
-    }
-
-    pub fn extend_files(mut self, files: &[impl Into<PathBuf> + Clone]) -> Self {
-        self.files.extend(files.iter().map(|file| file.clone().into()));
         self
     }
 }

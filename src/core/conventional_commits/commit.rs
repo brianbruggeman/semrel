@@ -156,12 +156,6 @@ impl fmt::Display for ConventionalCommit {
     }
 }
 
-impl From<&ConventionalCommit> for ConventionalCommit {
-    fn from(commit: &ConventionalCommit) -> Self {
-        commit.clone()
-    }
-}
-
 impl TryFrom<String> for ConventionalCommit {
     type Error = ConventionalCommitError;
 

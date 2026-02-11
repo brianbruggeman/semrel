@@ -16,7 +16,6 @@ pub fn collect_changelog_commits_streaming(
     manifest_path: &Path,
     relative_manifest_path: &Path,
     current_version: SimpleVersion,
-    _rules: &[(CommitType, BumpRule)],
 ) -> Result<Vec<CommitInfo>, RepositoryError> {
     let mut collected_commits = Vec::new();
     let walker = revwalk(repo, manifest_path)?;
@@ -162,7 +161,7 @@ impl ChangeLog {
 }
 
 /// Collects all commits since the last release and computes the next version.
-pub fn get_changelog(repo: &git2::Repository, manifest_path: impl Into<PathBuf>, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
+pub fn get_changelog(repo: &git2::Repository, manifest_path: impl Into<PathBuf>) -> Result<ChangeLog, RepositoryError> {
     let manifest_path: PathBuf = manifest_path.into();
     let manifest_path = manifest_path.canonicalize().unwrap_or(manifest_path);
     tracing::trace!("Getting changelog for manifest path: {}", manifest_path.display());
@@ -200,7 +199,7 @@ pub fn get_changelog(repo: &git2::Repository, manifest_path: impl Into<PathBuf>,
     tracing::debug!("Current version: {}", current_version);
 
     // Use the optimized streaming approach that stops early
-    let captured_commits = collect_changelog_commits_streaming(repo, &manifest_path, &relative_manifest_path, current_version, rules)?;
+    let captured_commits = collect_changelog_commits_streaming(repo, &manifest_path, &relative_manifest_path, current_version)?;
 
     let changelog = ChangeLog::new(current_version, captured_commits);
     tracing::debug!("Finished get_changelog. Current version: {}", current_version);
@@ -234,28 +233,6 @@ fn load_file_data(repo: &git2::Repository, commit: &git2::Commit, path: impl AsR
     let content = std::str::from_utf8(blob.content()).map_err(|why| RepositoryError::BlobToTextError(entry.id().to_string(), why.to_string()))?;
     tracing::trace!("Successfully loaded file data for path: {}", path.display());
     Ok(content.to_string())
-}
-
-#[allow(clippy::needless_lifetimes)]
-pub fn revwalk_commit_log<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>) -> Result<impl IntoIterator<Item = CommitInfo> + 'a, RepositoryError> {
-    let walker = revwalk(repo, project_path)?;
-    let data = walker.into_iter().flat_map(move |oid_result| {
-        let oid = match oid_result {
-            Ok(oid) => oid,
-            Err(why) => {
-                tracing::warn!("Skipping unreadable commit: {why}");
-                return Err(why);
-            }
-        };
-        let commit = repo
-            .find_commit(oid)
-            .map_err(|_| RepositoryError::CommitNotFound(oid.to_string()))?;
-        let conventional_commit = ConventionalCommit::try_from(commit.message().unwrap_or_default())?;
-        let files_changed = get_files_changed(repo, oid)?;
-        let timestamp = commit.time().seconds().max(0) as u64;
-        Ok::<CommitInfo, RepositoryError>(CommitInfo::new(oid.to_string(), files_changed, conventional_commit, timestamp))
-    });
-    Ok(data)
 }
 
 /// Retrieves the files changed in a commit
@@ -572,26 +549,26 @@ mod tests {
             Ok(())
         }
 
-        fn generate_changelog(&self, rules: &[(CommitType, BumpRule)]) -> Result<ChangeLog, RepositoryError> {
+        fn generate_changelog(&self) -> Result<ChangeLog, RepositoryError> {
             let manifest_path = crate::find_manifest(&self.path)?;
-            get_changelog(&self.test_repo.repo, manifest_path, rules)
+            get_changelog(&self.test_repo.repo, manifest_path)
         }
 
         fn generate_next_version(&self, rules: &[(CommitType, BumpRule)]) -> Result<SimpleVersion, RepositoryError> {
             let manifest_path = crate::find_manifest(&self.path)?;
-            let changelog = get_changelog(&self.test_repo.repo, manifest_path, rules)?;
+            let changelog = get_changelog(&self.test_repo.repo, manifest_path)?;
             Ok(changelog.next_version(rules))
         }
 
-        fn generate_log_messages(&self, rules: &[(CommitType, BumpRule)]) -> Result<Vec<String>, RepositoryError> {
+        fn generate_log_messages(&self) -> Result<Vec<String>, RepositoryError> {
             let manifest_path = crate::find_manifest(&self.path)?;
-            let changelog = get_changelog(&self.test_repo.repo, manifest_path, rules)?;
+            let changelog = get_changelog(&self.test_repo.repo, manifest_path)?;
             let log_messages = changelog.changes.iter().map(|v| v.commit.message()).collect::<Vec<_>>();
             Ok(log_messages)
         }
 
-        fn generate_pretty_log_messages(&self, rules: &[(CommitType, BumpRule)]) -> Result<String, RepositoryError> {
-            let messages = self.generate_log_messages(rules)?;
+        fn generate_pretty_log_messages(&self) -> Result<String, RepositoryError> {
+            let messages = self.generate_log_messages()?;
             let mut final_message = "\n".to_string();
             for (index, message) in messages.iter().enumerate() {
                 final_message.push_str(&format!("{}: {}\n", index, message));
@@ -860,23 +837,6 @@ mod tests {
         assert!(filenames.contains(&"test2.txt"), "Expected test2.txt to be changed");
     }
 
-    #[test]
-    fn test_get_commit_log() {
-        let test_repo = TestRepo::new();
-        test_repo.add_file("file1.txt", "Hello, world!").expect("Failed to add file");
-        test_repo.commit("Add file1.txt").unwrap();
-        test_repo.add_file("file2.txt", "Hello, again!").expect("Failed to add file");
-        test_repo.commit("Add file2.txt").unwrap();
-        let path = test_repo.path();
-
-        let commit_log = revwalk_commit_log(&test_repo.repo, path).unwrap();
-        let commits: Vec<_> = commit_log.into_iter().collect();
-
-        assert_eq!(commits.len(), 2);
-        assert_eq!(commits[0].commit.message(), "Add file2.txt");
-        assert_eq!(commits[1].commit.message(), "Add file1.txt");
-    }
-
     #[rstest]
     #[case::empty_empty("", "", "")]
     #[case::empty_root("", "/root", "/root")]
@@ -914,15 +874,15 @@ mod tests {
         project.build().expect("Failed to init project");
         match type_ {
             TestRepoType::Empty => {
-                assert!(project.generate_changelog(&rules).is_err(), "changelog should fail with empty repo");
+                assert!(project.generate_changelog().is_err(), "changelog should fail with empty repo");
             }
             TestRepoType::SingleCommit => {
-                let log = project.generate_log_messages(&rules).expect("Could not build repo");
+                let log = project.generate_log_messages().expect("Could not build repo");
                 assert_eq!(log.len(), 0, "No unreleased commits after initial version");
             }
             TestRepoType::MultipleCommits | TestRepoType::BranchedMultipleCommits => {
-                let log = project.generate_log_messages(&rules).expect("Could not build repo");
-                let log_messages = project.generate_pretty_log_messages(&rules).expect("Could not build repo");
+                let log = project.generate_log_messages().expect("Could not build repo");
+                let log_messages = project.generate_pretty_log_messages().expect("Could not build repo");
                 assert_eq!(log.len(), 3, "{}", "{log_messages}");
                 assert_eq!(log.first().expect("Could not find log"), "fix: use add", "Recent commit does not match: {log_messages}");
                 assert_eq!(log.last().expect("Could not find log"), "fix: create library", "Oldest commit does not match: {log_messages}");
@@ -1833,7 +1793,6 @@ mod tests {
     #[test]
     fn changelog_stops_at_previous_release() {
         let test_repo = TestRepo::new();
-        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
 
         // 0.1.0 -> feat commit -> 0.2.0 -> fix commit -> (current 0.2.0 on disk)
         let cargo_v1 = "[package]\nname = \"test\"\nversion = \"0.1.0\"\n";
@@ -1854,7 +1813,7 @@ mod tests {
         test_repo.commit("fix: fix after boundary").unwrap();
 
         let manifest_path = test_repo.path().join("Cargo.toml");
-        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let changelog = get_changelog(&test_repo.repo, &manifest_path).unwrap();
         let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
 
         assert!(messages.iter().any(|m| m.contains("fix after boundary")), "Should include fix after 0.2.0: {messages:?}");
@@ -1864,7 +1823,6 @@ mod tests {
     #[test]
     fn nobump_commits_stop_at_boundary() {
         let test_repo = TestRepo::new();
-        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
 
         // 0.9.0 -> old docs commit -> 1.0.0 -> new docs commit -> (current 1.0.0 on disk)
         let cargo_v1 = "[package]\nname = \"test\"\nversion = \"0.9.0\"\n";
@@ -1885,7 +1843,7 @@ mod tests {
         test_repo.commit("docs: update readme").unwrap();
 
         let manifest_path = test_repo.path().join("Cargo.toml");
-        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let changelog = get_changelog(&test_repo.repo, &manifest_path).unwrap();
         let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
 
         assert!(messages.iter().any(|m| m.contains("update readme")), "Should include docs commit after 1.0.0: {messages:?}");
@@ -1915,18 +1873,15 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn negative_timestamp_panics() {
-        // git allows commit dates before epoch (e.g., in test repos or corrupted data).
-        // num_traits::cast::<i64, u64>(-1) returns None, and the .unwrap() panics.
-        let result: Option<u64> = num_traits::cast::<i64, u64>(-1);
-        result.unwrap();
+    fn negative_timestamp_clamps_to_zero() {
+        let negative: i64 = -1;
+        let clamped = negative.max(0) as u64;
+        assert_eq!(clamped, 0);
     }
 
     #[test]
     fn patch_stops_at_patch_boundary() {
         let test_repo = TestRepo::new();
-        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
 
         // 1.1.0 -> fix A -> 1.1.1 -> fix B -> 1.1.2 -> fix C -> (current 1.1.2 on disk)
         let cargo = "[package]\nname = \"test\"\nversion = \"1.1.0\"\n";
@@ -1956,7 +1911,7 @@ mod tests {
         test_repo.commit("fix: fix C").unwrap();
 
         let manifest_path = test_repo.path().join("Cargo.toml");
-        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let changelog = get_changelog(&test_repo.repo, &manifest_path).unwrap();
         let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
 
         assert!(messages.iter().any(|m| m == "fix: fix C"), "Should include fix C: {messages:?}");
@@ -1967,7 +1922,6 @@ mod tests {
     #[test]
     fn patch_changelog_only_since_last_release() {
         let test_repo = TestRepo::new();
-        let rules: Vec<(CommitType, BumpRule)> = crate::build_default_rules().collect();
 
         // 1.1.0 -> fix A -> 1.1.1 -> fix B -> 1.1.2 -> fix C -> (current 1.1.2 on disk)
         let cargo = "[package]\nname = \"test\"\nversion = \"1.1.0\"\n";
@@ -1997,7 +1951,7 @@ mod tests {
         test_repo.commit("fix: fix C").unwrap();
 
         let manifest_path = test_repo.path().join("Cargo.toml");
-        let changelog = get_changelog(&test_repo.repo, &manifest_path, &rules).unwrap();
+        let changelog = get_changelog(&test_repo.repo, &manifest_path).unwrap();
         let messages: Vec<String> = changelog.changes.iter().map(|c| c.commit.message()).collect();
 
         assert!(messages.iter().any(|m| m == "fix: fix C"), "fix C should be in changelog: {messages:?}");

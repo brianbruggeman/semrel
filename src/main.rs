@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
         tracing::trace!(" - Active: {commit_type:?} -> {bump_rule:?}");
     }
     let manifest_path = find_manifest(path)?;
-    let changelog = get_changelog(&repo, &manifest_path, &rules)?;
+    let changelog = get_changelog(&repo, &manifest_path)?;
     tracing::info!("Found manifest: {}", manifest_path.display());
     let current_version = changelog.current_version;
     tracing::info!("Found manifest version: {current_version}");

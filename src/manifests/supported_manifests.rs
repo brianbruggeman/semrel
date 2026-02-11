@@ -3,9 +3,8 @@ use std::path::{Path, PathBuf};
 
 use crate::{CargoToml, Manifest, ManifestError, ManifestObjectSafe, ManifestStatic, PackageJson, PyProjectToml, SimpleVersion};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub enum SupportedManifest {
-    #[default]
     Unsupported,
     Rust(Box<CargoToml>),
     Javascript(Box<PackageJson>),

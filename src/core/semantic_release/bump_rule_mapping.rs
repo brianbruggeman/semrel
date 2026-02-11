@@ -1,5 +1,5 @@
 use super::BumpRule;
-use crate::{CommitType, SimpleVersion};
+use crate::CommitType;
 
 pub fn build_default_rules() -> impl Iterator<Item = (CommitType, BumpRule)> {
     let mapping = vec![
@@ -35,14 +35,6 @@ pub fn match_rule(rules: impl IntoIterator<Item = (CommitType, BumpRule)>, commi
     }
 }
 
-pub fn bump_version(rules: impl IntoIterator<Item = (CommitType, BumpRule)>, commit_type: impl Into<CommitType>, version: impl Into<SimpleVersion>) -> SimpleVersion {
-    let commit_type = commit_type.into();
-    let version = version.into();
-    let rule = match_rule(rules, commit_type);
-    tracing::debug!("Bumping version with rule: {rule:?}");
-    version.bump(rule)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,29 +47,25 @@ mod tests {
     }
 
     #[rstest]
-    #[case::empty(build_default_rules(), "", "1.0.0", "1.0.0")]
-    #[case::build(build_default_rules(), "build", "1.0.0", "1.0.0")]
-    #[case::chore(build_default_rules(), "chore", "1.0.0", "1.0.1")]
-    #[case::ci(build_default_rules(), "ci", "1.0.0", "1.0.0")]
-    #[case::cd(build_default_rules(), "cd", "1.0.0", "1.0.0")]
-    #[case::docs(build_default_rules(), "docs", "1.0.0", "1.0.0")]
-    #[case::feat(build_default_rules(), "feat", "1.0.0", "1.1.0")]
-    #[case::fix(build_default_rules(), "fix", "1.0.0", "1.0.1")]
-    #[case::perf(build_default_rules(), "perf", "1.0.0", "1.0.1")]
-    #[case::refactor(build_default_rules(), "refactor", "1.0.0", "1.0.1")]
-    #[case::revert(build_default_rules(), "revert", "1.0.0", "1.0.1")]
-    #[case::style(build_default_rules(), "style", "1.0.0", "1.0.1")]
-    #[case::test(build_default_rules(), "test", "1.0.0", "1.0.0")]
-    #[case::custom(custom_rules(), "ENG-2345", "1.0.0", "2.0.0")]
-    fn test_bump_version(
+    #[case::empty(build_default_rules(), "", BumpRule::Notset)]
+    #[case::build(build_default_rules(), "build", BumpRule::NoBump)]
+    #[case::chore(build_default_rules(), "chore", BumpRule::Patch)]
+    #[case::ci(build_default_rules(), "ci", BumpRule::NoBump)]
+    #[case::cd(build_default_rules(), "cd", BumpRule::NoBump)]
+    #[case::docs(build_default_rules(), "docs", BumpRule::NoBump)]
+    #[case::feat(build_default_rules(), "feat", BumpRule::Minor)]
+    #[case::fix(build_default_rules(), "fix", BumpRule::Patch)]
+    #[case::perf(build_default_rules(), "perf", BumpRule::Patch)]
+    #[case::refactor(build_default_rules(), "refactor", BumpRule::Patch)]
+    #[case::revert(build_default_rules(), "revert", BumpRule::Patch)]
+    #[case::style(build_default_rules(), "style", BumpRule::Patch)]
+    #[case::test(build_default_rules(), "test", BumpRule::NoBump)]
+    #[case::custom(custom_rules(), "ENG-2345", BumpRule::Major)]
+    fn test_match_rule(
         #[case] rules: impl Iterator<Item = (CommitType, BumpRule)>,
         #[case] commit_type: impl Into<CommitType>,
-        #[case] version: impl Into<SimpleVersion>,
-        #[case] expected: impl Into<SimpleVersion>,
+        #[case] expected: BumpRule,
     ) {
-        let commit_type = commit_type.into();
-        let version = version.into();
-        let expected = expected.into();
-        assert_eq!(bump_version(rules, commit_type, version), expected);
+        assert_eq!(match_rule(rules, commit_type), expected);
     }
 }
