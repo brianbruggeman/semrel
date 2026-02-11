@@ -5,7 +5,6 @@ const GIT_HEADER_PREFIXES: &[&str] = &[
     "commit",
     "committer",
     "date",
-    "merge",
     "parent",
     "reviewed-by",
     "tree",
@@ -63,6 +62,9 @@ mod tests {
     #[case::body_with_merge("chore: test\n\nMerge the two modules", "chore: test\n\nMerge the two modules")]
     #[case::body_with_date("feat: thing\n\nDate format was wrong", "feat: thing\n\nDate format was wrong")]
     #[case::body_with_commit("fix: bug\n\nCommit to quality", "fix: bug\n\nCommit to quality")]
+    #[case::merge_commit_subject("Merge branch 'feature' into main", "Merge branch 'feature' into main")]
+    #[case::merge_pr_subject("Merge pull request #123 from user/branch", "Merge pull request #123 from user/branch")]
+    #[case::merge_commit_with_body("Merge branch 'feature'\n\n* feat: add feature\n* fix: fix bug", "Merge branch 'feature'\n\n* feat: add feature\n* fix: fix bug")]
     fn test_prune_message(#[case] input: &str, #[case] expected: &str) {
         let result = prune_message(input);
         assert_eq!(result, expected);
