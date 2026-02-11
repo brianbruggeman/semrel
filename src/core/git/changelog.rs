@@ -290,9 +290,9 @@ fn get_files_changed(repo: &git2::Repository, oid: impl Into<git2::Oid>) -> Resu
     } else {
         // If there's no parent, this is the initial commit
         // We consider all files in the initial commit as "changed"
-        tree.walk(TreeWalkMode::PreOrder, |_, entry| {
+        tree.walk(TreeWalkMode::PreOrder, |dir, entry| {
             if let Some(name) = entry.name() {
-                files.push(PathBuf::from(name));
+                files.push(PathBuf::from(format!("{dir}{name}")));
             }
             0
         })
@@ -1893,10 +1893,9 @@ mod tests {
     }
 
     #[test]
-    fn initial_commit_tree_walk_gives_flat_names() {
+    fn initial_commit_tree_walk_preserves_paths() {
         let test_repo = TestRepo::new();
 
-        // Create a nested file structure
         let nested_dir = test_repo.path().join("src");
         std::fs::create_dir_all(&nested_dir).unwrap();
         let file_path = nested_dir.join("lib.rs");
@@ -1911,11 +1910,8 @@ mod tests {
         let commit_oid = test_repo.commit("chore: initial").unwrap();
         let files = get_files_changed(&test_repo.repo, commit_oid).unwrap();
 
-        // The initial commit branch uses tree.walk with entry.name() which gives
-        // only the filename, not the full relative path. "src/lib.rs" becomes "lib.rs".
         let has_nested_path = files.iter().any(|f| f == Path::new("src/lib.rs"));
-        let has_flat_name = files.iter().any(|f| f == Path::new("lib.rs"));
-        assert!(has_flat_name && !has_nested_path, "Initial commit tree walk loses directory info. Files: {files:?}");
+        assert!(has_nested_path, "Initial commit tree walk should preserve full paths. Files: {files:?}");
     }
 
     #[test]
