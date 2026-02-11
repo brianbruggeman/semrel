@@ -104,18 +104,22 @@ impl ConventionalCommit {
             return;
         }
         if let Some(footer) = &commit.footer {
-            if let Some(rest) = footer.strip_prefix("BREAKING CHANGE:") {
+            let rest = footer.strip_prefix("BREAKING CHANGE:")
+                .or_else(|| footer.strip_prefix("BREAKING-CHANGE:"));
+            if let Some(rest) = rest {
                 commit.footer = Some(rest.trim_start().to_string());
                 commit.breaking_change = true;
                 return;
             }
-            if footer.starts_with("BREAKING CHANGE") {
+            if footer.starts_with("BREAKING CHANGE") || footer.starts_with("BREAKING-CHANGE") {
                 commit.breaking_change = true;
                 return;
             }
         }
         if let Some(body) = &commit.body {
-            commit.breaking_change = body.split("\n\n").any(|p| p.starts_with("BREAKING CHANGE"));
+            commit.breaking_change = body.split("\n\n").any(|p| {
+                p.starts_with("BREAKING CHANGE") || p.starts_with("BREAKING-CHANGE")
+            });
         }
     }
 
@@ -283,6 +287,33 @@ mod tests {
         "add API endpoint",
         "Some body text",
         "Some footer",
+        true
+    )]
+    #[case::breaking_change_hyphen_footer(
+        "feat: add endpoint\n\nBREAKING-CHANGE: removed old API",
+        "feat",
+        "",
+        "add endpoint",
+        "",
+        "removed old API",
+        true
+    )]
+    #[case::breaking_change_hyphen_footer_with_body(
+        "feat: add endpoint\n\nSome details\n\nBREAKING-CHANGE: removed old API",
+        "feat",
+        "",
+        "add endpoint",
+        "Some details",
+        "removed old API",
+        true
+    )]
+    #[case::breaking_change_hyphen_footer_with_multipart_body(
+        "feat: redesign\n\nFirst paragraph\n\nSecond paragraph\n\nBREAKING-CHANGE: old API removed",
+        "feat",
+        "",
+        "redesign",
+        "First paragraph\n\nSecond paragraph",
+        "old API removed",
         true
     )]
     fn test_commit_message_parser(

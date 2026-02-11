@@ -10,7 +10,7 @@ extra_punc = _{ (
     | "!" | "{" | "}" | "+" | "="
 ) }
 breaking_change_shorthand = { ( "!" )+ }
-breaking_change_phrase = { "BREAKING CHANGE" | "!!!" }
+breaking_change_phrase = { "BREAKING CHANGE" | "BREAKING-CHANGE" | "!!!" }
 breaking_change_prefix = _{ breaking_change_phrase ~ (":" ~ whitespace)? }
 valid_word = _{ (!extra_punc ~ ANY)+ }
 commit_type = { valid_word }
