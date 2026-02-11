@@ -49,9 +49,9 @@ impl SupportedManifest {
             .and_then(|f| f.to_str())
             .ok_or_else(|| ManifestError::InvalidManifestPath(path.to_path_buf()))?;
         let parsed = match filename {
-            p if p.contains(package_json) => SupportedManifest::Javascript(Box::new(PackageJson::parse(data)?)),
-            p if p.contains(cargo_toml) => SupportedManifest::Rust(Box::new(CargoToml::parse(data)?)),
-            p if p.contains(pyproject_toml) => SupportedManifest::Python(Box::new(PyProjectToml::parse(data)?)),
+            p if p == package_json => SupportedManifest::Javascript(Box::new(PackageJson::parse(data)?)),
+            p if p == cargo_toml => SupportedManifest::Rust(Box::new(CargoToml::parse(data)?)),
+            p if p == pyproject_toml => SupportedManifest::Python(Box::new(PyProjectToml::parse(data)?)),
             _ => return Err(ManifestError::InvalidManifestPath(path.to_path_buf())),
         };
         tracing::trace!("Parsed manifest version: {:?}", parsed.version()?);
