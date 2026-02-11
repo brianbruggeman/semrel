@@ -1,14 +1,9 @@
-use crate::{CargoToml, ManifestError, ManifestStatic, PackageJson, PyProjectToml, SupportedManifest};
+use crate::{ManifestError, SupportedManifest, manifest_search_order};
 use std::path::{Path, PathBuf};
 
 pub fn find_manifest(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError> {
-    [
-        path.as_ref().to_path_buf(),
-        path.as_ref().join(PyProjectToml::manifest_filename()),
-        path.as_ref().join(PackageJson::manifest_filename()),
-        path.as_ref().join(CargoToml::manifest_filename()),
-    ]
-    .into_iter()
+    std::iter::once(path.as_ref().to_path_buf())
+        .chain(manifest_search_order().into_iter().map(|f| path.as_ref().join(f)))
     .inspect(|path| {
         tracing::debug!("Checking for manifest under: {}", path.display());
     })

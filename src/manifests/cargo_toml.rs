@@ -220,9 +220,9 @@ mod tests {
     }
 
     #[rstest]
-    #[case::validate_valid_version("[package]\nname = \"test\"\nversion = \"1.0.0\"\n", Ok(CargoToml::new("1.0.0")))]
+    #[case::validate_valid_version("[package]\nname = \"test\"\nversion = \"1.0.0\"\n", Ok(CargoToml::new(SimpleVersion::new(1, 0, 0))))]
     #[case::validate_invalid_version("[package]\nname = \"test\"\nversion = \"invalid-version\"\n", Err(ManifestError::InvalidManifest("Invalid manifest: Invalid version part: invalid digit found in string at line 1 column 37".to_string())))]
-    #[case::parse_missing_version("[package]\nname = \"test\"\n", Ok(CargoToml::new("0.0.0")))]
+    #[case::parse_missing_version("[package]\nname = \"test\"\n", Ok(CargoToml::new(SimpleVersion::new(0, 0, 0))))]
     fn test_parse(#[case] data: &str, #[case] expected: Result<CargoToml, ManifestError>) {
         let result = CargoToml::parse(data);
         match (&result, expected.as_ref()) {

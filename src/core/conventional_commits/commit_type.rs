@@ -1,7 +1,4 @@
 use std::fmt;
-use std::str::FromStr;
-
-use crate::ConventionalCommitError;
 
 /// A commit message that follows the conventional commit standard
 #[derive(Debug, Default, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
@@ -125,7 +122,7 @@ impl<'de> serde::Deserialize<'de> for CommitType {
             where
                 E: serde::de::Error,
             {
-                CommitType::from_str(value).map_err(serde::de::Error::custom)
+                Ok(CommitType::from(value))
             }
         }
 
@@ -135,7 +132,24 @@ impl<'de> serde::Deserialize<'de> for CommitType {
 
 impl From<&str> for CommitType {
     fn from(s: &str) -> Self {
-        CommitType::from_str(s).unwrap_or(CommitType::Unknown)
+        if s.is_empty() {
+            return CommitType::Unknown;
+        }
+        match s.to_lowercase().as_str() {
+            "build" => CommitType::Build,
+            "chore" => CommitType::Chore,
+            "ci" | "continuous integration" => CommitType::Ci,
+            "cd" | "deploy" => CommitType::Cd,
+            "doc" | "docs" | "documentation" => CommitType::Docs,
+            "feat" | "feature" | "features" => CommitType::Feat,
+            "fix" | "fixes" => CommitType::Fix,
+            "perf" | "performance" => CommitType::Perf,
+            "refactor" => CommitType::Refactor,
+            "revert" => CommitType::Revert,
+            "style" => CommitType::Style,
+            "test" | "tests" => CommitType::Test,
+            _ => CommitType::Custom(s.to_string()),
+        }
     }
 }
 
@@ -160,31 +174,6 @@ impl PartialEq<CommitType> for &str {
 impl PartialEq<CommitType> for &CommitType {
     fn eq(&self, other: &CommitType) -> bool {
         self.as_str() == other.as_str()
-    }
-}
-
-impl FromStr for CommitType {
-    type Err = ConventionalCommitError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.is_empty() {
-            return Ok(CommitType::Unknown);
-        }
-        match s.to_lowercase().as_str() {
-            "build" => Ok(CommitType::Build),
-            "chore" => Ok(CommitType::Chore),
-            "ci" | "continuous integration" => Ok(CommitType::Ci),
-            "cd" | "deploy" => Ok(CommitType::Cd),
-            "doc" | "docs" | "documentation" => Ok(CommitType::Docs),
-            "feat" | "feature" | "features" => Ok(CommitType::Feat),
-            "fix" | "fixes" => Ok(CommitType::Fix),
-            "perf" | "performance" => Ok(CommitType::Perf),
-            "refactor" => Ok(CommitType::Refactor),
-            "revert" => Ok(CommitType::Revert),
-            "style" => Ok(CommitType::Style),
-            "test" | "tests" => Ok(CommitType::Test),
-            _ => Ok(CommitType::Custom(s.to_string())),
-        }
     }
 }
 

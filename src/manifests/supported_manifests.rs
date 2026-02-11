@@ -96,7 +96,7 @@ impl TryFrom<PathBuf> for SupportedManifest {
     type Error = ManifestError;
 
     fn try_from(value: PathBuf) -> Result<Self, Self::Error> {
-        let valid_manifests = [CargoToml::manifest_filename(), PackageJson::manifest_filename(), PyProjectToml::manifest_filename()];
+        let valid_manifests = super::manifest_search_order();
         if value.is_dir() {
             for manifest in valid_manifests.iter() {
                 let manifest_path = value.join(manifest);

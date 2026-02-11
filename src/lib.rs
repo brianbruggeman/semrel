@@ -9,7 +9,7 @@ pub use core::{
 };
 
 mod manifests;
-pub use manifests::{CargoToml, PackageJson, PyProjectToml, SupportedManifest};
+pub use manifests::{CargoToml, PackageJson, PyProjectToml, SupportedManifest, manifest_search_order};
 
 mod util;
 pub use util::{find_manifest, parse_manifest};
