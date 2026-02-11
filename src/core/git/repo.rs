@@ -37,10 +37,13 @@ pub fn find_top_of_repo(path: impl AsRef<Path>) -> Result<PathBuf, RepositoryErr
                     .map_err(|_| RepositoryError::InvalidRepositoryPath(path.to_owned()));
             }
             tracing::trace!("Repository not found: {path:?}.  Looking for parent");
-            path = path
-                .parent()
-                .ok_or_else(|| RepositoryError::InvalidRepositoryPath(path.to_owned()))?
-                .to_path_buf();
+            match path.parent() {
+                Some(parent) if parent == path => {
+                    return Err(RepositoryError::InvalidRepositoryPath(path));
+                }
+                Some(parent) => path = parent.to_path_buf(),
+                None => return Err(RepositoryError::InvalidRepositoryPath(path)),
+            }
         }
     } else {
         Err(RepositoryError::InvalidRepositoryPath(path.as_ref().into()))
