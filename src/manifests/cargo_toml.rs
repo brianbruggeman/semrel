@@ -98,10 +98,13 @@ impl ManifestObjectSafe for CargoToml {
     fn set_version(&mut self, version: impl Into<SimpleVersion>) -> Result<(), ManifestError> {
         let version = version.into();
         let version_string = version.to_string();
-        if let Some(package) = self.manifest.package.as_mut() {
-            package.version.set(version_string);
+        match self.manifest.package.as_mut() {
+            Some(package) => {
+                package.version.set(version_string);
+                Ok(())
+            }
+            None => Err(ManifestError::InvalidManifest("Missing package".to_string())),
         }
-        Ok(())
     }
 
     fn write(&self, path: impl Into<PathBuf>) -> Result<(), ManifestError> {
