@@ -215,12 +215,12 @@ mod tests {
     #[case::fix("fix", CommitType::Fix)]
     #[case::perf("perf", CommitType::Perf)]
     #[case::refactor("refactor", CommitType::Refactor)]
+    #[case::revert("revert", CommitType::Revert)]
     #[case::style("style", CommitType::Style)]
     #[case::test("test", CommitType::Test)]
     #[case::custom("ENG-2345", CommitType::Custom("ENG-2345".to_string()))]
     fn test_convert_commit_type(#[case] input: impl AsRef<str>, #[case] expected: CommitType) {
-        let input = input.as_ref().to_string();
-        let actual: CommitType = serde_json::from_str(&format!("\"{}\"", input)).unwrap_or(CommitType::Unknown);
+        let actual = CommitType::from(input.as_ref());
         assert_eq!(actual, expected);
     }
 }

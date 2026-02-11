@@ -116,9 +116,7 @@ impl<'a> TryFrom<Commit<'a>> for ConventionalCommit {
     type Error = ConventionalCommitError;
 
     fn try_from(commit: Commit<'a>) -> Result<Self, Self::Error> {
-        let message = commit
-            .message()
-            .ok_or(ConventionalCommitError::EmptyCommitMessage)?;
+        let message = commit.message().ok_or(ConventionalCommitError::EmptyCommitMessage)?;
         ConventionalCommit::new(message)
     }
 }
@@ -160,14 +158,7 @@ impl fmt::Display for ConventionalCommit {
 
 impl From<&ConventionalCommit> for ConventionalCommit {
     fn from(commit: &ConventionalCommit) -> Self {
-        ConventionalCommit {
-            commit_type: commit.commit_type.clone(),
-            scope: commit.scope.clone(),
-            subject: commit.subject.clone(),
-            footer: commit.footer.clone(),
-            body: commit.body.clone(),
-            ..Default::default()
-        }
+        commit.clone()
     }
 }
 
@@ -231,35 +222,38 @@ mod tests {
     }
 
     #[rstest]
-    #[case::ci_scoped("ci(core): add commit message parser", "ci", "core", "add commit message parser", "", "")]
-    #[case::ci_unscoped("ci: add commit message parser", "ci", "", "add commit message parser", "", "")]
-    #[case::feat_unscoped("feat: add commit message parser", "feat", "", "add commit message parser", "", "")]
-    #[case::feat_unscoped("build: add commit message parser", "build", "", "add commit message parser", "", "")]
-    #[case::natural_commit("add commit message parser", CommitType::NonCompliant, "", "add commit message parser", "", "")]
+    #[case::ci_scoped("ci(core): add commit message parser", "ci", "core", "add commit message parser", "", "", false)]
+    #[case::ci_unscoped("ci: add commit message parser", "ci", "", "add commit message parser", "", "", false)]
+    #[case::feat_unscoped("feat: add commit message parser", "feat", "", "add commit message parser", "", "", false)]
+    #[case::build_unscoped("build: add commit message parser", "build", "", "add commit message parser", "", "", false)]
+    #[case::natural_commit("add commit message parser", CommitType::NonCompliant, "", "add commit message parser", "", "", false)]
     #[case::natural_multi_line_commit(
         "add commit message parser\n\nThis is a multi-line commit message",
         CommitType::NonCompliant,
         "",
         "add commit message parser",
         "",
-        "This is a multi-line commit message"
+        "This is a multi-line commit message",
+        false
     )]
-    #[case::merged_pr_commit("Ignore changes from Black -> Ruff (#4032)", CommitType::NonCompliant, "", "Ignore changes from Black -> Ruff (#4032)", "", "")]
+    #[case::merged_pr_commit("Ignore changes from Black -> Ruff (#4032)", CommitType::NonCompliant, "", "Ignore changes from Black -> Ruff (#4032)", "", "", false)]
     #[case::squashed_feature_branch_commit(
         squashed_feature_branch_commit(),
         "chore",
         "package",
         "upgrade ruff (#4031)",
         "\n\n* chore(package): upgrade ruff\n\n- chore(deps): removes black and isort\n- chore(style): run ruff\n- chore(lint): fix linting",
-        "* chore(ci): update ci to use ruff format"
+        "* chore(ci): update ci to use ruff format",
+        false
     )]
-    #[case::footer_included(
+    #[case::breaking_change_footer(
         "feat: add commit message parser\n\nBREAKING CHANGE: this is a breaking change",
         "feat",
         "",
         "add commit message parser",
         "",
-        "this is a breaking change"
+        "this is a breaking change",
+        true
     )]
     fn test_commit_message_parser(
         #[case] commit_message: impl AsRef<str>,
@@ -268,6 +262,7 @@ mod tests {
         #[case] subject: impl AsRef<str>,
         #[case] body: impl AsRef<str>,
         #[case] footer: impl AsRef<str>,
+        #[case] breaking_change: bool,
     ) {
         let scope = match scope.as_ref().is_empty() {
             true => None,
@@ -292,6 +287,11 @@ mod tests {
             commit.footer.clone().unwrap_or_default(),
             footer.as_ref(),
             "Footer failed. Commit input was: {:#?}.  Got: {commit:#?}",
+            commit_message.as_ref()
+        );
+        assert_eq!(
+            commit.breaking_change, breaking_change,
+            "Breaking change failed. Commit input was: {:#?}.  Got: {commit:#?}",
             commit_message.as_ref()
         );
     }

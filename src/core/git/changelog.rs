@@ -343,9 +343,7 @@ pub fn revwalk<'a>(repo: &'a git2::Repository, project_path: impl Into<PathBuf>)
             if files.is_empty() {
                 return Ok(None);
             }
-            let matched = files
-                .iter()
-                .any(|file| repo_path.join(file).starts_with(&project_path));
+            let matched = files.iter().any(|file| repo_path.join(file).starts_with(&project_path));
             Ok(matched.then_some(oid))
         })
         .filter_map(|result| result.transpose());
@@ -916,9 +914,7 @@ mod tests {
         project.build().expect("Failed to init project");
         match type_ {
             TestRepoType::Empty => {
-                if let Ok(_changelog) = project.generate_changelog(&rules) {
-                    assert!(false, "changelog should fail with empty repo");
-                }
+                assert!(project.generate_changelog(&rules).is_err(), "changelog should fail with empty repo");
             }
             TestRepoType::SingleCommit => {
                 let log = project.generate_log_messages(&rules).expect("Could not build repo");

@@ -47,28 +47,15 @@ mod tests {
     #[case::invalid_scope("fix(fix): fix", "fix")]
     fn test_parsing_scope(#[case] commit_message: impl AsRef<str>, #[case] expected_type: impl AsRef<str>) {
         let commit_message = commit_message.as_ref();
-
-        match CommitMessageParser::parse(Rule::commit_message, commit_message) {
-            Ok(parsed) => {
-                let found_match = match expected_type.as_ref() == "" {
-                    true => !parsed
-                        .flatten()
-                        .inspect(|pair| {
-                            println!("pair[{:?}]: {}", pair.as_rule(), pair.as_str());
-                        })
-                        .any(|pair| matches!(pair.as_rule(), Rule::scope)),
-                    false => parsed
-                        .flatten()
-                        .inspect(|pair| {
-                            println!("pair[{:?}]: {}", pair.as_rule(), pair.as_str());
-                        })
-                        .any(|pair| matches!(pair.as_rule(), Rule::scope)),
-                };
-                assert!(found_match, "Parsed commit type '{}' did not match the expected type '{}'", commit_message, expected_type.as_ref());
-            }
-            Err(err) => {
-                panic!("Failed to parse commit message: '{}'. Error: {}", commit_message, err);
-            }
+        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message)
+            .unwrap_or_else(|err| panic!("Failed to parse commit message: '{commit_message}'. Error: {err}"));
+        let scope_value = parsed
+            .flatten()
+            .find(|pair| matches!(pair.as_rule(), Rule::scope))
+            .map(|pair| pair.as_str().to_string());
+        match expected_type.as_ref() {
+            "" => assert!(scope_value.is_none(), "Expected no scope for '{commit_message}', but found: {scope_value:?}"),
+            expected => assert_eq!(scope_value.as_deref(), Some(expected), "Scope mismatch for '{commit_message}'"),
         }
     }
 
@@ -81,27 +68,15 @@ mod tests {
     #[case::invalid_scope("fix(fix): a fix", "a fix")]
     fn test_parsing_subject(#[case] commit_message: impl AsRef<str>, #[case] expected_type: impl AsRef<str>) {
         let commit_message = commit_message.as_ref();
-        match CommitMessageParser::parse(Rule::commit_message, commit_message) {
-            Ok(parsed) => {
-                let found_match = match expected_type.as_ref() == "" {
-                    true => !parsed
-                        .flatten()
-                        .inspect(|pair| {
-                            println!("pair[{:?}]: {}", pair.as_rule(), pair.as_str());
-                        })
-                        .any(|pair| matches!(pair.as_rule(), Rule::subject)),
-                    false => parsed
-                        .flatten()
-                        .inspect(|pair| {
-                            println!("pair[{:?}]: {}", pair.as_rule(), pair.as_str());
-                        })
-                        .any(|pair| matches!(pair.as_rule(), Rule::subject)),
-                };
-                assert!(found_match, "Parsed commit type '{}' did not match the expected type '{}'", commit_message, expected_type.as_ref());
-            }
-            Err(err) => {
-                panic!("Failed to parse commit message: '{}'. Error: {}", commit_message, err);
-            }
+        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message)
+            .unwrap_or_else(|err| panic!("Failed to parse commit message: '{commit_message}'. Error: {err}"));
+        let subject_value = parsed
+            .flatten()
+            .find(|pair| matches!(pair.as_rule(), Rule::subject))
+            .map(|pair| pair.as_str().to_string());
+        match expected_type.as_ref() {
+            "" => assert!(subject_value.is_none(), "Expected no subject for '{commit_message}', but found: {subject_value:?}"),
+            expected => assert_eq!(subject_value.as_deref(), Some(expected), "Subject mismatch for '{commit_message}'"),
         }
     }
 
