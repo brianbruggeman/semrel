@@ -139,17 +139,17 @@ impl fmt::Display for ConventionalCommit {
             Some(scope) => format!("({scope})"),
             None => "".to_string(),
         };
+        let bang = if self.breaking_change { "!" } else { "" };
 
         let title = match &self.commit_type {
-            CommitType::NonCompliant => "".to_string(),
-            CommitType::Unknown => "".to_string(),
+            CommitType::NonCompliant | CommitType::Unknown => "".to_string(),
             CommitType::Custom(value) => value.clone(),
             _ => self.commit_type.to_string(),
         };
 
         let mut string = match title.is_empty() {
             true => self.subject.to_string(),
-            false => format!("{}{}: {}", title, scope, self.subject),
+            false => format!("{title}{scope}{bang}: {}", self.subject),
         };
 
         if let Some(body) = &self.body {
@@ -157,11 +157,8 @@ impl fmt::Display for ConventionalCommit {
         }
 
         if let Some(footer) = &self.footer {
-            string = match self.breaking_change {
-                true => format!("{string}\n\nBREAKING CHANGE: {footer}"),
-                false => format!("{string}\n\n{footer}"),
-            };
-        } else if self.breaking_change {
+            string = format!("{string}\n\n{footer}");
+        } else if self.breaking_change && title.is_empty() {
             string = format!("{string}\n\nBREAKING CHANGE");
         }
         write!(f, "{string}")
