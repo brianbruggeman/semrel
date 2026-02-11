@@ -3,7 +3,6 @@ use std::{
     str::FromStr,
 };
 
-use num_traits::AsPrimitive;
 use serde::Deserialize;
 use serde::de::{self, Deserializer, Visitor};
 
@@ -20,12 +19,8 @@ pub struct SimpleVersion {
 }
 
 impl SimpleVersion {
-    pub fn new(major: impl AsPrimitive<Ver>, minor: impl AsPrimitive<Ver>, patch: impl AsPrimitive<Ver>) -> Self {
-        SimpleVersion {
-            major: major.as_(),
-            minor: minor.as_(),
-            patch: patch.as_(),
-        }
+    pub fn new(major: u16, minor: u16, patch: u16) -> Self {
+        SimpleVersion { major, minor, patch }
     }
 
     pub fn increment_major(&mut self) {
@@ -204,11 +199,11 @@ mod tests {
 
     #[rstest]
     #[case::v1_2_3(1, 2, 3, "1.2.3")]
-    fn test_version_display(#[case] major: impl AsPrimitive<Ver>, #[case] minor: impl AsPrimitive<Ver>, #[case] patch: impl AsPrimitive<Ver>, #[case] expected: impl AsRef<str>) {
+    fn test_version_display(#[case] major: u16, #[case] minor: u16, #[case] patch: u16, #[case] expected: impl AsRef<str>) {
         let version = SimpleVersion::new(major, minor, patch);
-        assert_eq!(version.major(), major.as_());
-        assert_eq!(version.minor(), minor.as_());
-        assert_eq!(version.patch(), patch.as_());
+        assert_eq!(version.major(), major);
+        assert_eq!(version.minor(), minor);
+        assert_eq!(version.patch(), patch);
         assert_eq!(version.to_string(), expected.as_ref());
     }
 }

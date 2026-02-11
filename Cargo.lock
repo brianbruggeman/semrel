@@ -1057,8 +1057,6 @@ dependencies = [
  "dirs",
  "dotenvy",
  "git2",
- "num-traits",
- "once_cell",
  "package-json",
  "pest",
  "pest_derive",
