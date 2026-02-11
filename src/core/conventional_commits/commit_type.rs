@@ -167,6 +167,9 @@ impl FromStr for CommitType {
     type Err = ConventionalCommitError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Ok(CommitType::Unknown);
+        }
         match s.to_lowercase().as_str() {
             "build" => Ok(CommitType::Build),
             "chore" => Ok(CommitType::Chore),
@@ -203,7 +206,7 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    #[case::empty("", CommitType::Custom("".to_string()))]
+    #[case::empty("", CommitType::Unknown)]
     #[case::build("build", CommitType::Build)]
     #[case::chore("chore", CommitType::Chore)]
     #[case::ci("ci", CommitType::Ci)]
