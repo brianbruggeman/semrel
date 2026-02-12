@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 pub fn find_manifest(path: impl AsRef<Path>) -> Result<PathBuf, ManifestError> {
     std::iter::once(path.as_ref().to_path_buf())
         .chain(manifest_search_order().into_iter().map(|f| path.as_ref().join(f)))
-    .inspect(|path| {
-        tracing::debug!("Checking for manifest under: {}", path.display());
-    })
-    .find(|path| path.exists() && path.is_file())
-    .inspect(|path| {
-        tracing::debug!("Found manifest under: {}", path.display());
-    })
-    .ok_or_else(|| ManifestError::InvalidManifestPath(path.as_ref().to_path_buf()))
+        .inspect(|path| {
+            tracing::debug!("Checking for manifest under: {}", path.display());
+        })
+        .find(|path| path.exists() && path.is_file())
+        .inspect(|path| {
+            tracing::debug!("Found manifest under: {}", path.display());
+        })
+        .ok_or_else(|| ManifestError::InvalidManifestPath(path.as_ref().to_path_buf()))
 }
 
 pub fn parse_manifest(path: impl AsRef<Path>) -> Result<SupportedManifest, ManifestError> {

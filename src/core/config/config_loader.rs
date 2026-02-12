@@ -159,10 +159,7 @@ mod tests {
 
         let paths = build_config_paths_public(project).unwrap();
         let first = &paths[0];
-        assert!(
-            first.starts_with(project),
-            "config path {first:?} should be inside project dir {project:?}"
-        );
+        assert!(first.starts_with(project), "config path {first:?} should be inside project dir {project:?}");
         assert_eq!(first.file_name().unwrap(), DEFAULT_CONFIG_FILENAME);
     }
 }

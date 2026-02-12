@@ -11,9 +11,5 @@ pub use supported_manifests::SupportedManifest;
 use crate::ManifestStatic;
 
 pub fn manifest_search_order() -> [&'static str; 3] {
-    [
-        PyProjectToml::manifest_filename(),
-        PackageJson::manifest_filename(),
-        CargoToml::manifest_filename(),
-    ]
+    [PyProjectToml::manifest_filename(), PackageJson::manifest_filename(), CargoToml::manifest_filename()]
 }

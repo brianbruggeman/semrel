@@ -47,8 +47,7 @@ mod tests {
     #[case::invalid_scope("fix(fix): fix", "fix")]
     fn test_parsing_scope(#[case] commit_message: impl AsRef<str>, #[case] expected_type: impl AsRef<str>) {
         let commit_message = commit_message.as_ref();
-        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message)
-            .unwrap_or_else(|err| panic!("Failed to parse commit message: '{commit_message}'. Error: {err}"));
+        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message).unwrap_or_else(|err| panic!("Failed to parse commit message: '{commit_message}'. Error: {err}"));
         let scope_value = parsed
             .flatten()
             .find(|pair| matches!(pair.as_rule(), Rule::scope))
@@ -68,8 +67,7 @@ mod tests {
     #[case::invalid_scope("fix(fix): a fix", "a fix")]
     fn test_parsing_subject(#[case] commit_message: impl AsRef<str>, #[case] expected_type: impl AsRef<str>) {
         let commit_message = commit_message.as_ref();
-        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message)
-            .unwrap_or_else(|err| panic!("Failed to parse commit message: '{commit_message}'. Error: {err}"));
+        let parsed = CommitMessageParser::parse(Rule::commit_message, commit_message).unwrap_or_else(|err| panic!("Failed to parse commit message: '{commit_message}'. Error: {err}"));
         let subject_value = parsed
             .flatten()
             .find(|pair| matches!(pair.as_rule(), Rule::subject))

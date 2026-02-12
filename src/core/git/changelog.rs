@@ -11,12 +11,7 @@ use crate::{BumpRule, CommitType, ConventionalCommit, RepositoryError, SimpleVer
 /// actually changed the manifest version to a value <= current_version.
 /// Commits that modify the manifest without changing the version field
 /// (e.g. dependency updates) are not treated as boundaries.
-pub fn collect_changelog_commits_streaming(
-    repo: &git2::Repository,
-    manifest_path: &Path,
-    relative_manifest_path: &Path,
-    current_version: SimpleVersion,
-) -> Result<Vec<CommitInfo>, RepositoryError> {
+pub fn collect_changelog_commits_streaming(repo: &git2::Repository, manifest_path: &Path, relative_manifest_path: &Path, current_version: SimpleVersion) -> Result<Vec<CommitInfo>, RepositoryError> {
     let mut collected_commits = Vec::new();
     let walker = revwalk(repo, manifest_path)?;
 

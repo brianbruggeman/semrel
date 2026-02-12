@@ -104,7 +104,8 @@ impl ConventionalCommit {
             return;
         }
         if let Some(footer) = &commit.footer {
-            let rest = footer.strip_prefix("BREAKING CHANGE:")
+            let rest = footer
+                .strip_prefix("BREAKING CHANGE:")
                 .or_else(|| footer.strip_prefix("BREAKING-CHANGE:"));
             if let Some(rest) = rest {
                 commit.footer = Some(rest.trim_start().to_string());
@@ -117,9 +118,9 @@ impl ConventionalCommit {
             }
         }
         if let Some(body) = &commit.body {
-            commit.breaking_change = body.split("\n\n").any(|p| {
-                p.starts_with("BREAKING CHANGE") || p.starts_with("BREAKING-CHANGE")
-            });
+            commit.breaking_change = body
+                .split("\n\n")
+                .any(|p| p.starts_with("BREAKING CHANGE") || p.starts_with("BREAKING-CHANGE"));
         }
     }
 
@@ -280,24 +281,8 @@ mod tests {
         "old API removed",
         true
     )]
-    #[case::breaking_change_shorthand_with_body(
-        "feat!: add API endpoint\n\nSome body text\n\nSome footer",
-        "feat",
-        "",
-        "add API endpoint",
-        "Some body text",
-        "Some footer",
-        true
-    )]
-    #[case::breaking_change_hyphen_footer(
-        "feat: add endpoint\n\nBREAKING-CHANGE: removed old API",
-        "feat",
-        "",
-        "add endpoint",
-        "",
-        "removed old API",
-        true
-    )]
+    #[case::breaking_change_shorthand_with_body("feat!: add API endpoint\n\nSome body text\n\nSome footer", "feat", "", "add API endpoint", "Some body text", "Some footer", true)]
+    #[case::breaking_change_hyphen_footer("feat: add endpoint\n\nBREAKING-CHANGE: removed old API", "feat", "", "add endpoint", "", "removed old API", true)]
     #[case::breaking_change_hyphen_footer_with_body(
         "feat: add endpoint\n\nSome details\n\nBREAKING-CHANGE: removed old API",
         "feat",
@@ -351,7 +336,8 @@ mod tests {
             commit_message.as_ref()
         );
         assert_eq!(
-            commit.breaking_change, breaking_change,
+            commit.breaking_change,
+            breaking_change,
             "Breaking change failed. Commit input was: {:#?}.  Got: {commit:#?}",
             commit_message.as_ref()
         );

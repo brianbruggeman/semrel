@@ -61,11 +61,7 @@ mod tests {
     #[case::style(build_default_rules(), "style", BumpRule::Patch)]
     #[case::test(build_default_rules(), "test", BumpRule::NoBump)]
     #[case::custom(custom_rules(), "ENG-2345", BumpRule::Major)]
-    fn test_match_rule(
-        #[case] rules: impl Iterator<Item = (CommitType, BumpRule)>,
-        #[case] commit_type: impl Into<CommitType>,
-        #[case] expected: BumpRule,
-    ) {
+    fn test_match_rule(#[case] rules: impl Iterator<Item = (CommitType, BumpRule)>, #[case] commit_type: impl Into<CommitType>, #[case] expected: BumpRule) {
         assert_eq!(match_rule(rules, commit_type), expected);
     }
 }
