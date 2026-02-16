@@ -17,7 +17,7 @@ pest_derive = { version = "2.8.6", features = ["grammar-extras"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 thiserror = "2.0.18"
-toml = { version = "0.9.11", features = ["preserve_order"] }
+toml = { version = "1.0.1", features = ["preserve_order"] }
 toml_edit = "0.24"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "serde", "serde_json", "json"] }
