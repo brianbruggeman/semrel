@@ -4,7 +4,7 @@ version = "0.10.31"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 cargo_toml = "0.22.3"
 chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "env"] }
