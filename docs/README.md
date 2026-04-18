@@ -17,10 +17,10 @@ $ mdbook build
 ```
 
 The book will be built in the `book/pdf` directory.
+
 ```bash
 $ open book/pdf/output.pdf
 ```
-
 
 ## Viewing
 

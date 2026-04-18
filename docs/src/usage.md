@@ -3,6 +3,7 @@
 This section contains a few examples of how to use the library from the command line.
 
 ## How we might use this
+
 ```bash
 # What's the change log for this new version?
 $ semrel show log
@@ -61,6 +62,7 @@ $ semrel
 ```
 
 ## Show the current version
+
 ```bash
 $ semrel show current
 0.2.3
@@ -68,7 +70,7 @@ $ semrel show current
 
 ## Custom rules
 
-Custom rules can be defined via the `--rule` flag.  The following command will bump the version to a minor version if the commit message contains `ENG-1234`:
+Custom rules can be defined via the `--rule` flag. The following command will bump the version to a minor version if the commit message contains `ENG-1234`:
 
 ```bash
 $ git log -1 --pretty=%B
@@ -79,6 +81,7 @@ $ semrel show next --rule ENG-1234=minor
 ```
 
 # Update the manifest
+
 ```bash
 $ semrel update
 ```

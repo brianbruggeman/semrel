@@ -2,17 +2,17 @@ name: Audit
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Commit SHA to run the workflow on'
+        description: "Commit SHA to run the workflow on"
         required: true
-        default: 'main'
+        default: "main"
 
 permissions:
-    checks: write
-    issues: write
+  checks: write
+  issues: write
 
 jobs:
   security_audit:

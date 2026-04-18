@@ -1,36 +1,36 @@
-name: 'Semrel'
-description: 'GitHub Action to detect new versions and generate release notes using semrel'
-author: 'Brian Bruggeman'
+name: "Semrel"
+description: "GitHub Action to detect new versions and generate release notes using semrel"
+author: "Brian Bruggeman"
 inputs:
   branch:
-    description: 'Branch to check out'
+    description: "Branch to check out"
     required: false
-    default: ''
+    default: ""
   path:
-    description: 'Path to project files'
+    description: "Path to project files"
     required: false
-    default: '.'
+    default: "."
 outputs:
   current-version:
-    description: 'The current version'
+    description: "The current version"
     value: ${{ steps.semrel.outputs.current-version }}
   log:
-    description: 'Base64 encoded commit log for the next version'
+    description: "Base64 encoded commit log for the next version"
     value: ${{ steps.semrel.outputs.log }}
   next-version:
-    description: 'The next version'
+    description: "The next version"
     value: ${{ steps.semrel.outputs.next-version }}
   release-notes:
-    description: 'Base64 encoded release notes for the next version'
+    description: "Base64 encoded release notes for the next version"
     value: ${{ steps.semrel.outputs.release-notes }}
   version-changed:
-    description: 'Identifies if current and next versions are different'
+    description: "Identifies if current and next versions are different"
     value: ${{ steps.semrel.outputs.version-changed }}
   manifest-path:
-    description: 'Identifies path to manifest file'
+    description: "Identifies path to manifest file"
     value: ${{ steps.semrel.outputs.manifest-path }}
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Checkout code
       if: ${{ inputs.branch != '' }}
@@ -40,7 +40,7 @@ runs:
         fetch-depth: 0
 
     - name: Install jq
-      shell:  bash
+      shell: bash
       run: sudo apt-get install -y jq
 
     - name: Get latest semrel release data
@@ -120,7 +120,7 @@ runs:
 
     - name: Set outputs
       id: semrel
-      shell:  bash
+      shell: bash
       run: |
         current_version=$(./semrel --path=${{ inputs.path }} show current)
         log=$(./semrel --path=${{ inputs.path }} show log)

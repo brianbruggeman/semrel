@@ -6,7 +6,7 @@ The current deployment process in many projects is only partially automated, wit
 
 ## Existing Solutions
 
-We looked at semantic-release, which is a popular tool for automating versioning and releases. Cargo-release is another tool, but in both cases, they seem to be primarily focused on a specific domain (e.g. npm packages or Rust projects).  The expansive ecosystem of semantic-release is compelling.  But the tooling itself was difficult to debug and failed to just work in Rust and Python projects.  Because we want to support Rust, Python, Typescript and Javascript, we needed something that was lightweight, more flexible and plugged into existing github actions without obfuscating the process used to develop the next version.
+We looked at semantic-release, which is a popular tool for automating versioning and releases. Cargo-release is another tool, but in both cases, they seem to be primarily focused on a specific domain (e.g. npm packages or Rust projects). The expansive ecosystem of semantic-release is compelling. But the tooling itself was difficult to debug and failed to just work in Rust and Python projects. Because we want to support Rust, Python, Typescript and Javascript, we needed something that was lightweight, more flexible and plugged into existing github actions without obfuscating the process used to develop the next version.
 
 ## Goals
 
