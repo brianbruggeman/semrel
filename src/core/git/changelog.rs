@@ -262,7 +262,7 @@ fn get_files_changed(repo: &git2::Repository, oid: impl Into<git2::Oid>) -> Resu
         // If there's no parent, this is the initial commit
         // We consider all files in the initial commit as "changed"
         tree.walk(TreeWalkMode::PreOrder, |dir, entry| {
-            if let Some(name) = entry.name() {
+            if let Ok(name) = entry.name() {
                 files.push(PathBuf::from(format!("{dir}{name}")));
             }
             0
